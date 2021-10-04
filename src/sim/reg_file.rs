@@ -1,59 +1,6 @@
-use super::traits::{ClockedMap, Field};
+use super::common::Register;
+use super::traits::{ClockedMap, Value};
 use std::collections::HashMap;
-use std::iter::Iterator;
-
-#[repr(u8)]
-#[derive(Debug, Hash, PartialEq, Eq, Copy, Clone)]
-pub enum Register {
-    ZERO,
-    AT,
-    V0,
-    V1,
-    A0,
-    A1,
-    A2,
-    A3,
-    T0,
-    T1,
-    T2,
-    T3,
-    T4,
-    T5,
-    T6,
-    T7,
-    S0,
-    S1,
-    S2,
-    S3,
-    S4,
-    S5,
-    S6,
-    S7,
-    T8,
-    T9,
-    K0,
-    K1,
-    GP,
-    SP,
-    FP,
-    RA,
-    HI,
-    LO,
-}
-
-impl Register {
-    pub fn iter() -> impl Iterator<Item = Register> {
-        use Register::*;
-        [
-            ZERO, AT, V0, V1, A0, A1, A2, A3, T0, T1, T2, T3, T4, T5, T6, T7, S0, S1, S2, S3, S4,
-            S5, S6, S7, T8, T9, K0, K1, GP, SP, FP, RA, HI, LO,
-        ]
-        .iter()
-        .copied()
-    }
-}
-
-impl Field for Register {}
 
 #[derive(Debug)]
 pub struct RegFile {
@@ -67,7 +14,6 @@ impl RegFile {
         for entry in Register::iter() {
             current_map.insert(entry, 0);
         }
-        let next_map = current_map.clone();
         let write_buffer = Vec::new();
 
         RegFile {
@@ -75,7 +21,13 @@ impl RegFile {
             write_buffer,
         }
     }
+
+    pub fn get_write_buffer(&self) -> Vec<(Register, u32)> {
+        self.write_buffer.clone()
+    }
 }
+
+impl Value for u32 {}
 
 impl ClockedMap<Register, u32> for RegFile {
     fn read(&self, field: Register) -> u32 {
@@ -84,11 +36,60 @@ impl ClockedMap<Register, u32> for RegFile {
 
     fn clock(&mut self) {
         for (k, v) in self.write_buffer.drain(..) {
-            self.current_map.insert(k, v).unwrap();
+            match k {
+                Register::ZERO => {}
+                _ => {
+                    self.current_map.insert(k, v).unwrap();
+                }
+            }
         }
     }
 
     fn load(&mut self, field: Register, value: u32) {
         self.write_buffer.push((field, value));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_init() {
+        let reg = RegFile::new();
+        for r in Register::iter() {
+            assert_eq!(reg.read(r), 0);
+        }
+    }
+
+    #[test]
+    fn test_clocking() {
+        let mut reg = RegFile::new();
+        reg.load(Register::A0, 1999);
+
+        assert_eq!(reg.read(Register::A0), 0);
+        reg.clock();
+
+        assert_eq!(reg.read(Register::A0), 1999);
+    }
+
+    #[test]
+    fn test_write_to_zero_reg() {
+        let mut reg = RegFile::new();
+        reg.load(Register::ZERO, 190124);
+        reg.clock();
+        assert_eq!(reg.read(Register::ZERO), 0);
+    }
+
+    #[test]
+    fn test_write_buffer_empty_after_clock() {
+        let mut reg = RegFile::new();
+        reg.load(Register::V1, 1241);
+        reg.load(Register::V0, 1291037);
+        reg.load(Register::A2, 500);
+
+        assert_eq!(reg.get_write_buffer().len(), 3);
+
+        reg.clock();
+        assert_eq!(reg.get_write_buffer().len(), 0);
     }
 }

@@ -1,5 +1,5 @@
+use super::common::Register;
 use super::pipe_reg::{PipeField, PipeFieldName};
-use super::reg_file::Register;
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -38,7 +38,7 @@ impl Controller {
                 SquashExecute,
                 SquashMemory,
                 SquashWriteback,
-                Halt
+                Halt,
             ] {
                 signal.insert(v, PipeField::XXX).unwrap();
             }

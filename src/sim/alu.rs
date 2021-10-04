@@ -1,32 +1,8 @@
+use super::common::ALUOperation;
 use std::error::Error;
 
 #[derive(Debug)]
 pub struct ALU;
-
-pub enum ALUOperation {
-    ADD,
-    ADDU,
-    SUB,
-    SUBU,
-    MUL,
-    MULU,
-    MULT,
-    MULTU,
-    DIV,
-    DIVU,
-    XOR,
-    NOR,
-    AND,
-    OR,
-    SLT,
-    SLTU,
-    LUI,
-    SRL,
-    SLL,
-    SRA,
-    CLO,
-    CLZ,
-}
 
 pub trait ALUError: std::fmt::Debug {}
 

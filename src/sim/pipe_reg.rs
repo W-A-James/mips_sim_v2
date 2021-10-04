@@ -1,7 +1,8 @@
-use super::traits::{ClockedMap, Field};
+use super::traits::{ClockedMap, Field, Value};
+use super::common::{ALUSrc, ALUOperation, RegDest, BranchType};
 use std::collections::HashMap;
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum PipeField {
     PcPlus4(u32),
     Reg1(u32),
@@ -19,15 +20,15 @@ pub enum PipeField {
     WriteMem(bool),
     MemWidth(u8),
     MemSigned(bool),
-    AluSrc1(u8), // FIXME: Replace with appropriate struct
-    AluSrc2(u8), // FIXME: Replace with appropriate struct
+    AluSrc1(ALUSrc), 
+    AluSrc2(ALUSrc),
     ALURes(u32),
-    AluOp(u8),   // FIXME: Replace with appripriate struct
-    RegDest(u8), // FIXME: Replace with appropriate struct
+    AluOp(ALUOperation),
+    RegDest(RegDest),
     Halt(bool),
     IsNop(bool),
     IsBranch(bool),
-    BranchType(u8), // FIXME: Replace with appropriate struct
+    BranchType(BranchType), // FIXME: Replace with appropriate struct
     InstructionPc(u32),
     Instruction(u32),
     InDelaySlot(bool),
@@ -37,6 +38,20 @@ pub enum PipeField {
     EPC(u32),
     BadVAddr(u32),
     Cause(u32),
+    StallFetch(bool),
+    StallDecode(bool),
+    StallExecute(bool),
+    StallMemory(bool),
+    StallWriteback(bool),
+    BubbleDecode(bool),
+    BubbleExecute(bool),
+    BubbleMemory(bool),
+    BubbleWriteback(bool),
+    SquashFetch(bool),
+    SquashDecode(bool),
+    SquashExecute(bool),
+    SquashMemory(bool),
+    SquashWriteback(bool),
     XXX,
 }
 
@@ -92,7 +107,7 @@ pub enum PipeFieldName {
     SquashWriteback,
 }
 
-impl Field for PipeField {}
+impl Value for PipeField {}
 impl Field for PipeFieldName {}
 
 #[derive(Debug)]

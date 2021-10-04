@@ -4,6 +4,7 @@ mod mem;
 mod pipe_reg;
 mod pipe_stage;
 mod reg_file;
+mod instruction;
 
 pub mod common;
 pub mod traits;
@@ -128,7 +129,7 @@ impl Sim {
     }
 
     fn initialize_registers(&mut self) {
-        use reg_file::Register;
+        //use common::Register;
         use PipeField::PC;
 
         self.reg_file.load(Register::SP, STACK_POINTER_INITIAL);

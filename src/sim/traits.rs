@@ -8,7 +8,7 @@ use std::hash::Hash;
 pub trait ClockedMap<K, V>
 where
     K: Field,
-    V: Copy + Clone
+    V: Value 
 {
     fn read(&self, field: K) -> V;
     fn clock(&mut self);
@@ -17,4 +17,4 @@ where
 
 pub trait Field: Debug + Hash + PartialEq + Eq {}
 
-pub trait Value: Debug + PartialEq + Eq {}
+pub trait Value: Debug + Copy + Clone {}
