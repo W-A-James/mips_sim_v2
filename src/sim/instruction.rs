@@ -3,7 +3,6 @@ use num_enum::TryFromPrimitive;
 use std::convert::TryFrom;
 
 use super::common::HALT_INSTRUCTION;
-use std::error::Error;
 
 #[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]

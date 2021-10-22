@@ -101,10 +101,12 @@ impl Sim {
         self.bad_v_addr.clock();
 
         self.reg_file.clock();
+
+        self.memory.clock();
     }
 
     pub fn step(&mut self, n: u32) {
-        for i in 0..n {
+        for _ in 0..n {
             self._step();
         }
     }
