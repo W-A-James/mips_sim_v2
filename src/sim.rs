@@ -114,14 +114,16 @@ impl Sim {
     pub fn load_binary(&mut self, instrs: &Vec<u32>, data: &Vec<u32>) {
         let mut mem_index = TEXT_START;
         for v in instrs {
-            self.memory.set(mem_index, *v);
+            self.memory.load(mem_index, *v);
             mem_index = mem_index + 4;
         }
         let data_start = mem_index;
         for v in data {
-            self.memory.set(mem_index, *v);
+            self.memory.load(mem_index, *v);
             mem_index += 4;
         }
+
+        self.memory.clock();
     }
 
     pub fn get_state() -> SimState {
