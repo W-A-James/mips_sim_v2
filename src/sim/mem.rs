@@ -1,4 +1,4 @@
-use super::traits::{ClockedMap, Value};
+use super::traits::ClockedMap;
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -29,7 +29,7 @@ impl Memory {
         if addr % 4 == 0 {
             Ok(self.read(addr))
         } else {
-            Err(InvalidMemoryAddressRequest{})
+            Err(InvalidMemoryAddressRequest {})
         }
     }
 }
