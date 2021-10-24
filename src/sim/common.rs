@@ -5,7 +5,7 @@ pub const TEXT_START: u32 = 0x0040_0000;
 pub const STACK_POINTER_INITIAL: u32 = 0x7fff_ffff;
 pub const HALT_INSTRUCTION: u32 = 0xDEAD_BEEF;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum ALUSrc {
     Zero,
     Reg1,
@@ -17,7 +17,7 @@ pub enum ALUSrc {
     ZeroExtImm,
     Shamt,
 }
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum ALUOperation {
     ADD,
     ADDU,
@@ -43,7 +43,7 @@ pub enum ALUOperation {
     CLZ,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum RegDest {
     Rt,
     Rd,
@@ -53,7 +53,7 @@ pub enum RegDest {
     XXX,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BranchType {
     Beq,
     Bgez,
@@ -66,7 +66,7 @@ pub enum BranchType {
     XXX,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum JumpType {
     J,
     Jal,

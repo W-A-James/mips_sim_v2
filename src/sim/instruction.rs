@@ -87,6 +87,12 @@ impl std::fmt::Display for InvalidInstructionError {
     }
 }
 
+pub const OP_CODE_OFFSET_BITS: u32 = 26;
+pub const RT_OFFSET_BITS: u32 = 16;
+pub const RS_OFFSET_BITS: u32 = 21;
+pub const RD_OFFSET_BITS: u32 = 11;
+pub const SHAMT_OFFSET_BITS: u32 = 6;
+
 pub struct Instruction {
     rs: Option<Register>,
     rt: Option<Register>,
@@ -100,22 +106,22 @@ pub struct Instruction {
 }
 
 fn extract_op_code(instruction_word: u32) -> u8 {
-    ((instruction_word & 0xFC00_0000) >> 26) as u8
+    ((instruction_word & 0xFC00_0000) >> OP_CODE_OFFSET_BITS) as u8
 }
 fn extract_rs(instruction_word: u32) -> u8 {
-    ((instruction_word & 0x03E0_0000) >> 21) as u8
+    ((instruction_word & 0x03E0_0000) >> RS_OFFSET_BITS) as u8
 }
 
 fn extract_rt(instruction_word: u32) -> u8 {
-    ((instruction_word & 0x001F_0000) >> 16) as u8
+    ((instruction_word & 0x001F_0000) >> RT_OFFSET_BITS) as u8
 }
 
 fn extract_rd(instruction_word: u32) -> u8 {
-    ((instruction_word & 0x0000_F800) >> 11) as u8
+    ((instruction_word & 0x0000_F800) >> RD_OFFSET_BITS) as u8
 }
 
 fn extract_shamt(instruction_word: u32) -> u8 {
-    ((instruction_word & 0x0000_07C0) >> 6) as u8
+    ((instruction_word & 0x0000_07C0) >> SHAMT_OFFSET_BITS) as u8
 }
 
 fn extract_imm(instruction_word: u32) -> u16 {
@@ -313,6 +319,63 @@ impl Instruction {
             }
         }
     }
+
+    pub fn from_parts(
+        op_code: OpCode,
+        func_code: Option<FuncCode>,
+        rt: Option<Register>,
+        rs: Option<Register>,
+        rd: Option<Register>,
+        shamt: Option<u8>,
+        imm: Option<u16>,
+        address: Option<u32>,
+    ) -> Result<Instruction, InvalidInstructionError> {
+        let mut instruction_word: u32 = (op_code as u32) << OP_CODE_OFFSET_BITS;
+        match func_code {
+            Some(func_code) => {
+                instruction_word |= func_code as u32;
+            }
+            None => {}
+        }
+        match rt {
+            Some(rt) => {
+                instruction_word |= (rt as u32) << RT_OFFSET_BITS;
+            }
+            None => {}
+        }
+        match rs {
+            Some(rs) => {
+                instruction_word |= (rs as u32) << RS_OFFSET_BITS;
+            }
+            None => {}
+        }
+        match rd {
+            Some(rd) => {
+                instruction_word |= (rd as u32) << RD_OFFSET_BITS;
+            }
+            None => {}
+        }
+        match shamt {
+            Some(shamt) => {
+                instruction_word |= (shamt as u32) << SHAMT_OFFSET_BITS;
+            }
+            None => {}
+        }
+        match imm {
+            Some(imm) => {
+                instruction_word |= imm as u32;
+            }
+            None => {}
+        }
+        match address {
+            Some(address) => {
+                instruction_word |= address;
+            }
+            None => {}
+        }
+
+        Instruction::new(instruction_word)
+    }
     pub fn get_rs(&self) -> Option<Register> {
         self.rs
     }
@@ -357,13 +420,13 @@ mod tests {
     #[test]
     #[should_panic]
     pub fn test_constructor_with_invalid_op_code() {
-        let invalid_instr = Instruction::new(0xdead_dead).unwrap();
+        Instruction::new(0xdead_dead).unwrap();
     }
 
     #[test]
     #[should_panic]
     pub fn test_constructor_with_invalid_func_code() {
-        let invalid_instr = Instruction::new(0x0000_00ff).unwrap();
+        Instruction::new(0x0000_00ff).unwrap();
     }
 
     #[test]

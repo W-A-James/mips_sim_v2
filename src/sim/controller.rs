@@ -51,12 +51,12 @@ impl Controller {
                 SquashWriteback,
                 Halt,
             ] {
-                signal.insert(v, PipeField::XXX).unwrap();
+                signal.insert(v, PipeField::XXX);
             }
         }
 
         for r in Register::iter() {
-            write_in_flight.insert(r, false).unwrap();
+            write_in_flight.insert(r, false);
         }
 
         Controller {
@@ -85,6 +85,8 @@ impl Controller {
                     set_signal_value!(self, RegDest, RegDest::Rd);
                     set_signal_value!(self, WriteReg, true);
                     set_signal_value!(self, AluToReg, true);
+                    set_signal_value!(self, WriteMem, false);
+                    set_signal_value!(self, ReadMem, false);
 
                     match instr.get_func_code() {
                         Some(func_code) => match func_code {
@@ -98,15 +100,23 @@ impl Controller {
                                 set_signal_value!(self, AluOp, ALUOperation::AND);
                             }
                             FuncCode::Div => {
+                                set_signal_value!(self, MuldivReqValid, true);
+                                set_signal_value!(self, WriteReg, false);
                                 set_signal_value!(self, AluOp, ALUOperation::DIV);
                             }
                             FuncCode::Divu => {
+                                set_signal_value!(self, MuldivReqValid, true);
+                                set_signal_value!(self, WriteReg, false);
                                 set_signal_value!(self, AluOp, ALUOperation::DIVU);
                             }
                             FuncCode::Mult => {
+                                set_signal_value!(self, MuldivReqValid, true);
+                                set_signal_value!(self, WriteReg, false);
                                 set_signal_value!(self, AluOp, ALUOperation::MULT);
                             }
                             FuncCode::Multu => {
+                                set_signal_value!(self, MuldivReqValid, true);
+                                set_signal_value!(self, WriteReg, false);
                                 set_signal_value!(self, AluOp, ALUOperation::MULTU);
                             }
                             FuncCode::Nor => {
@@ -182,9 +192,13 @@ impl Controller {
                                 set_signal_value!(self, AluOp, ALUOperation::SUBU);
                             }
                             FuncCode::Mfhi => {
+                                set_signal_value!(self, AluSrc1, ALUSrc::Muldivhi);
+                                set_signal_value!(self, AluSrc2, ALUSrc::Zero);
                                 set_signal_value!(self, AluOp, ALUOperation::ADD);
                             }
                             FuncCode::Mflo => {
+                                set_signal_value!(self, AluSrc1, ALUSrc::Muldivlo);
+                                set_signal_value!(self, AluSrc2, ALUSrc::Zero);
                                 set_signal_value!(self, AluOp, ALUOperation::ADD);
                             }
                             FuncCode::Mthi => {
@@ -208,7 +222,9 @@ impl Controller {
                                 set_signal_value!(self, AluOp, ALUOperation::ADD);
                             }
                         },
-                        None => {}
+                        None => {
+                            panic!("Invalid instruction");
+                        }
                     }
                 }
                 OpCode::Addi => {
@@ -264,8 +280,16 @@ impl Controller {
                     set_signal_value!(self, WriteMem, false);
                     set_signal_value!(self, ReadMem, false);
                 }
-                OpCode::Bgelt => {}
-                OpCode::Bgtz => {}
+                OpCode::Bgelt => {
+                    set_signal_value!(self, AluSrc1, ALUSrc::Reg1);
+                    set_signal_value!(self, AluSrc2, ALUSrc::Zero);
+                    // TODO:
+                }
+                OpCode::Bgtz => {
+                    set_signal_value!(self, WriteReg, false);
+                    set_signal_value!(self, AluSrc1, ALUSrc::Reg1);
+                    set_signal_value!(self, AluSrc2, ALUSrc::Zero);
+                }
                 OpCode::Bne => {
                     set_signal_value!(self, AluOp, ALUOperation::XOR);
                     set_signal_value!(self, AluSrc1, ALUSrc::Reg1);
@@ -274,8 +298,18 @@ impl Controller {
                     set_signal_value!(self, WriteMem, false);
                     set_signal_value!(self, ReadMem, false);
                 }
-                OpCode::J => {}
-                OpCode::Jal => {}
+                OpCode::J => {
+                    set_signal_value!(self, WriteReg, false);
+                    set_signal_value!(self, AluSrc1, ALUSrc::Zero);
+                    set_signal_value!(self, AluSrc2, ALUSrc::Zero);
+                    set_signal_value!(self, AluOp, ALUOperation::OR);
+                }
+                OpCode::Jal => {
+                    set_signal_value!(self, AluSrc1, ALUSrc::PcPlus4);
+                    set_signal_value!(self, AluSrc2, ALUSrc::Zero);
+                    set_signal_value!(self, AluOp, ALUOperation::OR);
+                    set_signal_value!(self, RegDest, RegDest::Ra);
+                }
                 OpCode::Lb => {
                     set_signal_value!(self, AluOp, ALUOperation::ADD);
                     set_signal_value!(self, AluSrc1, ALUSrc::Reg1);
@@ -336,9 +370,25 @@ impl Controller {
                     set_signal_value!(self, MemWidth, 4);
                     set_signal_value!(self, MemSigned, true);
                 }
-                OpCode::Lwl => {}
-                OpCode::Lwr => {}
-                OpCode::Ll => {}
+                OpCode::Lwl => {
+                    set_signal_value!(self, AluOp, ALUOperation::ADD);
+                    set_signal_value!(self, RegDest, RegDest::Rt);
+                    set_signal_value!(self, AluSrc1, ALUSrc::Reg1);
+                    set_signal_value!(self, AluSrc2, ALUSrc::SignExtImm);
+                    set_signal_value!(self, ReadMem, true);
+                    set_signal_value!(self, AluToReg, false);
+                }
+                OpCode::Lwr => {
+                    set_signal_value!(self, AluOp, ALUOperation::ADD);
+                    set_signal_value!(self, RegDest, RegDest::Rt);
+                    set_signal_value!(self, AluSrc1, ALUSrc::Reg1);
+                    set_signal_value!(self, AluSrc2, ALUSrc::SignExtImm);
+                    set_signal_value!(self, ReadMem, true);
+                    set_signal_value!(self, AluToReg, false);
+                }
+                OpCode::Ll => {
+                    todo!();
+                }
                 OpCode::Sb => {
                     set_signal_value!(self, AluOp, ALUOperation::ADD);
                     set_signal_value!(self, AluSrc1, ALUSrc::Reg1);
@@ -369,10 +419,123 @@ impl Controller {
                     set_signal_value!(self, AluToReg, false);
                     set_signal_value!(self, MemWidth, 4);
                 }
-                OpCode::Swl => {}
-                OpCode::Swr => {}
-                OpCode::Eret => {}
+                OpCode::Swl => {
+                    set_signal_value!(self, AluOp, ALUOperation::ADD);
+                    set_signal_value!(self, WriteReg, false);
+                    set_signal_value!(self, AluSrc1, ALUSrc::Reg1);
+                    set_signal_value!(self, AluSrc2, ALUSrc::SignExtImm);
+                    set_signal_value!(self, WriteMem, true);
+                }
+                OpCode::Swr => {
+                    set_signal_value!(self, AluOp, ALUOperation::ADD);
+                    set_signal_value!(self, WriteReg, false);
+                    set_signal_value!(self, AluSrc1, ALUSrc::Reg1);
+                    set_signal_value!(self, AluSrc2, ALUSrc::SignExtImm);
+                    set_signal_value!(self, WriteMem, true);
+                }
+                OpCode::Eret => {
+                    todo!();
+                }
             }
         }
+    }
+
+    pub fn get_state(&self, field_name: PipeFieldName) -> Option<PipeField> {
+        match self.signal.get(&field_name) {
+            Some(&v) => Some(v),
+            None => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Instruction;
+    use super::*;
+
+    macro_rules! assert_state_eq {
+        ($controller: ident, $field_name: ident, $value: expr) => {{
+            match $controller.get_state(PipeFieldName::$field_name) {
+                Some(result) => match result {
+                    PipeField::$field_name(v) => {
+                        assert_eq!(v, $value);
+                    }
+                    _ => unreachable!(),
+                },
+                None => assert!(false),
+            }
+        }};
+    }
+
+    #[test]
+    pub fn test_controller_state_update() {
+        // TODO: Test ALL instructions in this way
+        let mut controller = Controller::new();
+        let mut instr = Instruction::from_parts(
+            OpCode::RType,
+            Some(FuncCode::Add),
+            Some(Register::T0),
+            Some(Register::T1),
+            Some(Register::T2),
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+
+        controller.update_state(&instr);
+
+        assert_state_eq!(controller, WriteReg, true);
+        assert_state_eq!(controller, WriteMem, false);
+        assert_state_eq!(controller, ReadMem, false);
+        assert_state_eq!(controller, AluOp, ALUOperation::ADD);
+        assert_state_eq!(controller, AluToReg, true);
+        assert_state_eq!(controller, RegDest, RegDest::Rd);
+        assert_state_eq!(controller, AluSrc1, ALUSrc::Reg1);
+        assert_state_eq!(controller, AluSrc2, ALUSrc::Reg2);
+
+        instr = Instruction::from_parts(
+            OpCode::Addi,
+            None,
+            Some(Register::T0),
+            Some(Register::T1),
+            None,
+            None,
+            Some(0xabcd),
+            None,
+        )
+        .unwrap();
+
+        controller.update_state(&instr);
+
+        assert_state_eq!(controller, WriteReg, true);
+        assert_state_eq!(controller, WriteMem, false);
+        assert_state_eq!(controller, ReadMem, false);
+        assert_state_eq!(controller, AluOp, ALUOperation::ADD);
+        assert_state_eq!(controller, AluToReg, true);
+        assert_state_eq!(controller, RegDest, RegDest::Rd);
+        assert_state_eq!(controller, AluSrc1, ALUSrc::Reg1);
+        assert_state_eq!(controller, AluSrc2, ALUSrc::SignExtImm);
+
+        instr = Instruction::from_parts(
+            OpCode::J,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some(0x00ff_ffff),
+        )
+        .unwrap();
+
+        controller.update_state(&instr);
+
+        assert_state_eq!(controller, WriteReg, false);
+        assert_state_eq!(controller, WriteMem, false);
+        assert_state_eq!(controller, ReadMem, false);
+        assert_state_eq!(controller, AluOp, ALUOperation::OR);
+        assert_state_eq!(controller, AluSrc1, ALUSrc::Zero);
+        assert_state_eq!(controller, AluSrc2, ALUSrc::Zero);
     }
 }
