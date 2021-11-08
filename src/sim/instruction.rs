@@ -282,13 +282,15 @@ impl Instruction {
                         shamt = None;
                         imm = None;
                         address = None;
+                        let func_code = (instruction_word & 0x0000_003f) as u8;
+                        let func_code = FuncCode::try_from(func_code);
 
                         Ok(Instruction {
                             rs,
                             rt,
                             rd,
                             op_code: op,
-                            func_code: None,
+                            func_code: Some(func_code.unwrap()),
                             shamt,
                             imm,
                             address,

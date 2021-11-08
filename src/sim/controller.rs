@@ -14,13 +14,11 @@ macro_rules! set_signal_value {
 #[derive(Debug)]
 pub struct Controller {
     signal: HashMap<PipeFieldName, PipeField>,
-    write_in_flight: HashMap<Register, bool>,
 }
 
 impl Controller {
     pub fn new() -> Controller {
         let mut signal = HashMap::new();
-        let mut write_in_flight = HashMap::new();
         {
             use PipeFieldName::*;
             for v in vec![
@@ -35,34 +33,17 @@ impl Controller {
                 ReadMem,
                 WriteMem,
                 MemWidth,
-                StallFetch,
-                StallDecode,
-                StallExecute,
-                StallMemory,
-                StallWriteback,
-                BubbleDecode,
-                BubbleExecute,
-                BubbleMemory,
-                BubbleWriteback,
-                SquashFetch,
-                SquashDecode,
-                SquashExecute,
-                SquashMemory,
-                SquashWriteback,
                 Halt,
+                BranchType,
+                JumpTarget,
+                IsJump,
+                TakeJump,
             ] {
                 signal.insert(v, PipeField::XXX);
             }
         }
 
-        for r in Register::iter() {
-            write_in_flight.insert(r, false);
-        }
-
-        Controller {
-            signal,
-            write_in_flight,
-        }
+        Controller { signal }
     }
 
     pub fn update_state(&mut self, instr: &Instruction) {
@@ -99,6 +80,9 @@ impl Controller {
                             FuncCode::And => {
                                 set_signal_value!(self, AluOp, ALUOperation::AND);
                             }
+                            // NOTE:
+                            // WriteReg signal only governs the general purpose
+                            // registers
                             FuncCode::Div => {
                                 set_signal_value!(self, MuldivReqValid, true);
                                 set_signal_value!(self, WriteReg, false);
@@ -172,12 +156,17 @@ impl Controller {
                             }
                             FuncCode::Jalr => {
                                 // TODO
+                                set_signal_value!(self, AluSrc1, ALUSrc::PcPlus4);
+                                set_signal_value!(self, AluSrc2, ALUSrc::Zero);
+                                set_signal_value!(self, RegDest, RegDest::Rd);
                                 set_signal_value!(self, AluOp, ALUOperation::ADD);
+                                set_signal_value!(self, IsJump, true);
                             }
                             FuncCode::Jr => {
                                 set_signal_value!(self, WriteReg, false);
                                 set_signal_value!(self, AluToReg, false);
                                 set_signal_value!(self, AluOp, ALUOperation::ADD);
+                                set_signal_value!(self, IsJump, true);
                             }
                             FuncCode::Tge => {
                                 set_signal_value!(self, AluOp, ALUOperation::SUB);
@@ -243,6 +232,33 @@ impl Controller {
                     set_signal_value!(self, AluSrc2, ALUSrc::SignExtImm);
                 }
                 OpCode::Mul => {
+                    match instr.get_func_code() {
+                        Some(func_code) => {
+                            match func_code {
+                                // Mul
+                                FuncCode::Srl => {
+                                    set_signal_value!(self, AluOp, ALUOperation::MUL);
+                                    set_signal_value!(self, AluSrc1, ALUSrc::Reg1);
+                                    set_signal_value!(self, AluSrc2, ALUSrc::Reg2);
+                                }
+                                // Clo
+                                FuncCode::Add => {
+                                    set_signal_value!(self, AluOp, ALUOperation::CLO);
+                                    set_signal_value!(self, AluSrc1, ALUSrc::Reg1);
+                                    set_signal_value!(self, AluSrc2, ALUSrc::Zero);
+                                }
+                                // Clz
+                                FuncCode::Addu => {
+                                    set_signal_value!(self, AluOp, ALUOperation::CLZ);
+                                    set_signal_value!(self, AluSrc1, ALUSrc::Reg1);
+                                    set_signal_value!(self, AluSrc2, ALUSrc::Zero);
+                                }
+
+                                _ => unreachable!(),
+                            }
+                        }
+                        None => unreachable!(),
+                    }
                     set_signal_value!(self, AluOp, ALUOperation::MULT);
                     set_signal_value!(self, AluSrc1, ALUSrc::Reg1);
                     set_signal_value!(self, AluSrc2, ALUSrc::Reg2);
@@ -283,12 +299,48 @@ impl Controller {
                 OpCode::Bgelt => {
                     set_signal_value!(self, AluSrc1, ALUSrc::Reg1);
                     set_signal_value!(self, AluSrc2, ALUSrc::Zero);
-                    // TODO:
+                    // TODO: handle the different cases here
+                    match instr.get_rt() {
+                        Some(rt) => {
+                            match rt {
+                                // TODO:
+                                // BLTZ
+                                Register::ZERO => {
+                                    set_signal_value!(self, AluOp, ALUOperation::SLT);
+                                    set_signal_value!(self, AluSrc1, ALUSrc::Reg1);
+                                    set_signal_value!(self, AluSrc2, ALUSrc::Zero);
+                                    set_signal_value!(self, WriteReg, false);
+                                    set_signal_value!(self, WriteMem, false);
+                                    set_signal_value!(self, ReadMem, false);
+                                }
+                                // BLTZAL
+                                // TODO
+                                Register::S0 => {}
+                                // BGEZAL
+                                // TODO
+                                Register::S1 => {}
+                                // BGEZ
+                                Register::AT => {
+                                    // if leading zeros >= 1, then 0 or positive
+                                    set_signal_value!(self, AluOp, ALUOperation::CLZ);
+                                    set_signal_value!(self, AluSrc1, ALUSrc::Reg1);
+                                    set_signal_value!(self, AluSrc2, ALUSrc::Zero);
+                                    set_signal_value!(self, WriteReg, false);
+                                    set_signal_value!(self, WriteMem, false);
+                                    set_signal_value!(self, ReadMem, false);
+                                }
+
+                                _ => unreachable!(),
+                            }
+                        }
+                        None => {}
+                    }
                 }
                 OpCode::Bgtz => {
                     set_signal_value!(self, WriteReg, false);
-                    set_signal_value!(self, AluSrc1, ALUSrc::Reg1);
-                    set_signal_value!(self, AluSrc2, ALUSrc::Zero);
+                    set_signal_value!(self, AluOp, ALUOperation::SLT);
+                    set_signal_value!(self, AluSrc1, ALUSrc::Zero);
+                    set_signal_value!(self, AluSrc2, ALUSrc::Reg1);
                 }
                 OpCode::Bne => {
                     set_signal_value!(self, AluOp, ALUOperation::XOR);
@@ -471,6 +523,8 @@ mod tests {
     pub fn test_controller_state_update() {
         // TODO: Test ALL instructions in this way
         let mut controller = Controller::new();
+
+        // add $t0, $t1, $t2
         let mut instr = Instruction::from_parts(
             OpCode::RType,
             Some(FuncCode::Add),
@@ -494,6 +548,7 @@ mod tests {
         assert_state_eq!(controller, AluSrc1, ALUSrc::Reg1);
         assert_state_eq!(controller, AluSrc2, ALUSrc::Reg2);
 
+        // addi $t0, $t1, 0xabcd
         instr = Instruction::from_parts(
             OpCode::Addi,
             None,
@@ -517,6 +572,7 @@ mod tests {
         assert_state_eq!(controller, AluSrc1, ALUSrc::Reg1);
         assert_state_eq!(controller, AluSrc2, ALUSrc::SignExtImm);
 
+        // j 0x00ff_ffff
         instr = Instruction::from_parts(
             OpCode::J,
             None,

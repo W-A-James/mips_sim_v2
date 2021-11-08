@@ -1,5 +1,6 @@
 mod alu;
 mod controller;
+mod stalling;
 mod mem;
 mod pipe_reg;
 mod pipe_stage;
@@ -15,6 +16,7 @@ use traits::ClockedMap;
 #[derive(Debug)]
 pub struct Sim {
     alu: alu::ALU,
+    stalling_unit: stalling::StallingUnit,
     reg_file: reg_file::RegFile,
     if_id_reg: pipe_reg::PipeRegister,
     id_ex_reg: pipe_reg::PipeRegister,
@@ -48,13 +50,80 @@ impl Sim {
         let controller = controller::Controller::new();
         let memory = mem::Memory::new();
         let alu = alu::ALU {};
+        let stalling_unit = stalling::StallingUnit::new();
 
         {
             use pipe_reg::PipeRegister;
-            if_id_reg = PipeRegister::new("IF/ID", vec![]);
-            id_ex_reg = PipeRegister::new("ID/EX", vec![]);
-            ex_mem_reg = PipeRegister::new("EX/MEM", vec![]);
-            mem_wb_reg = PipeRegister::new("MEM/WB", vec![]);
+            // TODO: Determine fields needed for each pipe register
+            if_id_reg = PipeRegister::new("IF/ID", vec![
+                PipeFieldName::PcPlus4,
+                PipeFieldName::Instruction,
+                PipeFieldName::InstructionPc,
+            ]);
+            id_ex_reg = PipeRegister::new("ID/EX", vec![
+                PipeFieldName::PcPlus4,
+                PipeFieldName::Reg1,
+                PipeFieldName::Reg2,
+                PipeFieldName::Muldivhi,
+                PipeFieldName::Muldivlo,
+                PipeFieldName::MuldivReqValid,
+                PipeFieldName::SignExtImm,
+                PipeFieldName::Rt,
+                PipeFieldName::Rd,
+                PipeFieldName::Shamt,
+                PipeFieldName::JumpTarget,
+                PipeFieldName::WriteReg,
+                PipeFieldName::ReadMem,
+                PipeFieldName::WriteMem,
+                PipeFieldName::MemWidth,
+                PipeFieldName::MemSigned,
+                PipeFieldName::AluSrc1,
+                PipeFieldName::AluSrc2,
+                PipeFieldName::AluOp,
+                PipeFieldName::AluToReg,
+                PipeFieldName::RegDest,
+                PipeFieldName::Halt,
+                PipeFieldName::IsNop,
+                PipeFieldName::IsBranch,
+                PipeFieldName::BranchType,
+                PipeFieldName::InstructionPc,
+                PipeFieldName::Instruction
+            ]);
+            ex_mem_reg = PipeRegister::new("EX/MEM", vec![
+                PipeFieldName::Reg2,
+                PipeFieldName::RegDest,
+                PipeFieldName::WriteReg,
+                PipeFieldName::WriteMem,
+                PipeFieldName::ReadMem,
+                PipeFieldName::MemWidth,
+                PipeFieldName::MemSigned,
+                PipeFieldName::IsBranch,
+                PipeFieldName::ALURes,
+                PipeFieldName::AluToReg,
+                PipeFieldName::MuldivRes,
+                PipeFieldName::MuldivReqValid,
+                PipeFieldName::JumpTarget,
+                PipeFieldName::Halt,
+                PipeFieldName::IsNop,
+                PipeFieldName::InDelaySlot,
+                PipeFieldName::InstructionPc,
+                PipeFieldName::Instruction
+            ]);
+            mem_wb_reg = PipeRegister::new("MEM/WB", vec![
+                PipeFieldName::ALURes,
+                PipeFieldName::MuldivRes,
+                PipeFieldName::MuldivReqValid,
+                PipeFieldName::MemData,
+                PipeFieldName::MemWidth,
+                PipeFieldName::RegDest,
+                PipeFieldName::WriteReg,
+                PipeFieldName::AluToReg,
+                PipeFieldName::Halt,
+                PipeFieldName::IsNop,
+                PipeFieldName::InDelaySlot,
+                PipeFieldName::Instruction,
+                PipeFieldName::InstructionPc
+            ]);
             pc = PipeRegister::new("PC", vec![PipeFieldName::PC]);
             status_reg = PipeRegister::new("STATUS", vec![PipeFieldName::Status]);
             epc_reg = PipeRegister::new("EPC", vec![PipeFieldName::EPC]);
@@ -63,6 +132,7 @@ impl Sim {
         }
 
         let mut sim = Sim {
+            stalling_unit,
             if_id_reg,
             id_ex_reg,
             ex_mem_reg,
