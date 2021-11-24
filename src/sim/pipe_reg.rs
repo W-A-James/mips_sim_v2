@@ -139,6 +139,10 @@ impl PipeRegister {
             write_buffer,
         }
     }
+
+    pub fn get_name(&self) -> String {
+        self.name.clone()
+    }
 }
 
 impl ClockedMap<PipeFieldName, PipeField> for PipeRegister {
