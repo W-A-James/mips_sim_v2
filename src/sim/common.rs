@@ -114,6 +114,13 @@ pub enum Register {
     LO,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum RegSrc {
+    Rt,
+    Rs,
+    XXX
+}
+
 impl Field for Register {}
 
 impl Register {

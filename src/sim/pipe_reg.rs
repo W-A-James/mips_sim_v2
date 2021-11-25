@@ -1,6 +1,13 @@
+use super::common::{ALUOperation, ALUSrc, BranchType, RegDest, RegSrc};
 use super::traits::{ClockedMap, Field, Value};
-use super::common::{ALUSrc, ALUOperation, RegDest, BranchType};
 use std::collections::HashMap;
+
+macro_rules! insert_pipe_value {
+    ($item: expr, $field_name: ident, $value: expr) => {{
+        $item
+            .load(PipeFieldName::$field_name, PipeField::$field_name($value));
+    }};
+}
 
 #[derive(Debug, Clone, Copy)]
 pub enum PipeField {
@@ -21,7 +28,7 @@ pub enum PipeField {
     MemWidth(u8),
     MemSigned(bool),
     MemData(u32),
-    AluSrc1(ALUSrc), 
+    AluSrc1(ALUSrc),
     AluSrc2(ALUSrc),
     ALURes(u32),
     AluToReg(bool),
@@ -56,6 +63,8 @@ pub enum PipeField {
     SquashExecute(bool),
     SquashMemory(bool),
     SquashWriteback(bool),
+    Reg1Src(RegSrc),
+    Reg2Src(RegSrc),
     XXX,
 }
 
@@ -78,7 +87,7 @@ pub enum PipeFieldName {
     MemWidth,
     MemSigned,
     MemData,
-    AluSrc1, 
+    AluSrc1,
     AluSrc2,
     ALURes,
     AluToReg,
@@ -113,6 +122,8 @@ pub enum PipeFieldName {
     SquashExecute,
     SquashMemory,
     SquashWriteback,
+    Reg1Src,
+    Reg2Src,
 }
 
 impl Value for PipeField {}

@@ -2,6 +2,7 @@ mod alu;
 mod controller;
 mod instruction;
 mod mem;
+#[macro_use]
 mod pipe_reg;
 mod reg_file;
 mod stalling;
@@ -92,9 +93,11 @@ impl Sim {
                     PipeFieldName::Halt,
                     PipeFieldName::IsNop,
                     PipeFieldName::IsBranch,
+                    PipeFieldName::IsJump,
                     PipeFieldName::BranchType,
                     PipeFieldName::InstructionPc,
                     PipeFieldName::Instruction,
+                    PipeFieldName::InDelaySlot,
                 ],
             );
             ex_mem_reg = PipeRegister::new(
@@ -212,28 +215,12 @@ impl Sim {
 
 // --------- Pipeline stage implementation ---------
 impl Sim {
-    fn fetch_stage(&mut self) {
-        let (stall_fetch, squash_fetch): (bool, bool);
-        match (
-            self.stalling_unit
-                .get_state(PipeFieldName::StallFetch)
-                .unwrap(),
-            self.stalling_unit
-                .get_state(PipeFieldName::SquashFetch)
-                .unwrap(),
-        ) {
-            (PipeField::StallFetch(stall), PipeField::SquashFetch(squash)) => {
-                stall_fetch = stall;
-                squash_fetch = squash;
-            }
-            _ => unreachable!(),
-        }
-
+    fn fetch_stage(&mut self, stall: bool, squash: bool) {
         // Check if this stage is being squashed
-        if squash_fetch {
+        if squash {
             // TODO
             // don't update state and send a bubble
-        } else if stall_fetch {
+        } else if stall {
             // TODO
             // Check if this stage should be sending a bubble
             // Check if this stage is stalling
@@ -246,12 +233,9 @@ impl Sim {
         else {
             if let PipeField::PC(pc) = self.pc.read(PipeFieldName::PC) {
                 let instr = self.memory.read(pc);
-                self.if_id_reg
-                    .load(PipeFieldName::Instruction, PipeField::Instruction(instr));
-                self.if_id_reg
-                    .load(PipeFieldName::InstructionPc, PipeField::InstructionPc(pc));
-                self.if_id_reg
-                    .load(PipeFieldName::PcPlus4, PipeField::InstructionPc(pc + 4));
+                insert_pipe_value![self.if_id_reg, Instruction, instr];
+                insert_pipe_value![self.if_id_reg, InstructionPc, pc];
+                insert_pipe_value![self.if_id_reg, PcPlus4, pc + 4];
 
                 let (is_branch, is_jump, alu_res_zero): (bool, bool, bool);
                 match (
@@ -274,18 +258,146 @@ impl Sim {
                 if (is_branch || is_jump) && alu_res_zero {
                     match self.ex_mem_reg.read(PipeFieldName::JumpTarget) {
                         PipeField::JumpTarget(target) => {
-                            self.pc.load(PipeFieldName::PC, PipeField::PC(target))
+                            insert_pipe_value![self.pc, PC, target];
                         }
                         _ => unreachable!(),
                     }
                 } else {
-                    self.pc.load(PipeFieldName::PC, PipeField::PC(pc + 4));
+                    insert_pipe_value![self.pc, PC, pc + 4];
                 }
             }
         }
     }
 
-    fn decode_stage(&mut self) {
+    fn decode_stage(&mut self, stall: bool, squash: bool) {
+        if squash {
+        } else if stall {
+        } else {
+            let (instr, instr_pc, pc_plus4): (u32, u32, u32);
+            match (
+                self.if_id_reg.read(PipeFieldName::Instruction),
+                self.if_id_reg.read(PipeFieldName::InstructionPc),
+                self.if_id_reg.read(PipeFieldName::PcPlus4),
+            ) {
+                (
+                    PipeField::Instruction(i),
+                    PipeField::InstructionPc(i_pc),
+                    PipeField::PcPlus4(pc_p_4),
+                ) => {
+                    instr = i;
+                    instr_pc = i_pc;
+                    pc_plus4 = pc_p_4;
+                }
+                _ => unreachable!(),
+            }
+            let parsed_instr = instruction::Instruction::new(instr);
+            match parsed_instr {
+                Ok(instruction) => {
+                    self.controller.update_state(&instruction);
+                    // Reg1
+                    match self.controller.get_state(PipeFieldName::Reg1Src).unwrap() {
+                        PipeField::Reg1Src(RegSrc::Rt) => {
+                            let reg_1_val: u32;
+                            if let Some(rt) = instruction.get_rt() {
+                                reg_1_val = self.reg_file.read(rt);
+                            } else {
+                                // NOTE
+                                reg_1_val = 0;
+                            }
+
+                            insert_pipe_value![self.id_ex_reg, Reg1, reg_1_val];
+                        }
+                        PipeField::Reg1Src(RegSrc::Rs) => {
+                            let reg_1_val: u32;
+                            if let Some(rs) = instruction.get_rs() {
+                                reg_1_val = self.reg_file.read(rs);
+                            } else {
+                                // NOTE
+                                reg_1_val = 0;
+                            }
+                            insert_pipe_value![self.id_ex_reg, Reg1, reg_1_val];
+                        }
+                        PipeField::Reg1Src(RegSrc::XXX) => {}
+                        _ => {}
+                    }
+                    // Reg2
+                    match self.controller.get_state(PipeFieldName::Reg1Src).unwrap() {
+                        PipeField::Reg1Src(RegSrc::Rt) => {
+                            let reg_2_val: u32;
+                            if let Some(rt) = instruction.get_rt() {
+                                reg_2_val = self.reg_file.read(rt);
+                            } else {
+                                // NOTE
+                                reg_2_val = 0;
+                            }
+
+                            insert_pipe_value![self.id_ex_reg, Reg2, reg_2_val];
+                        }
+                        PipeField::Reg1Src(RegSrc::Rs) => {
+                            let reg_2_val: u32;
+                            if let Some(rs) = instruction.get_rt() {
+                                reg_2_val = self.reg_file.read(rs);
+                            } else {
+                                // NOTE
+                                reg_2_val = 0;
+                            }
+
+                            insert_pipe_value![self.id_ex_reg, Reg2, reg_2_val];
+                        }
+                        PipeField::Reg1Src(RegSrc::XXX) => {}
+                        _ => {}
+                    }
+                    // PcPlus4
+                    self.id_ex_reg.load(
+                        PipeFieldName::PcPlus4,
+                        self.if_id_reg.read(PipeFieldName::PcPlus4),
+                    );
+                    // Muldivhi
+                    insert_pipe_value![self.id_ex_reg, Muldivhi, self.reg_file.read(Register::HI)];
+                    // Muldivlo
+                    insert_pipe_value![self.id_ex_reg, Muldivlo, self.reg_file.read(Register::LO)];
+                    // SignExtImm
+                    // TODO: Need to do sign extension
+                    // Rt
+                    insert_pipe_value![
+                        self.id_ex_reg,
+                        Rt,
+                        match instruction.get_rt() {
+                            Some(reg) => reg as u8,
+                            None => 0,
+                        }
+                    ];
+                    // Rd
+                    insert_pipe_value![
+                        self.id_ex_reg,
+                        Rd,
+                        match instruction.get_rd() {
+                            Some(reg) => reg as u8,
+                            None => 0,
+                        }
+                    ];
+                    // Shamt
+                    insert_pipe_value![
+                        self.id_ex_reg,
+                        Rd,
+                        match instruction.get_shamt() {
+                            Some(shamt) => shamt,
+                            None => 0,
+                        }
+                    ];
+                    // IsNop
+                    insert_pipe_value![self.id_ex_reg, IsNop, instruction.is_nop()];
+                }
+                Err(e) => panic!("{:#?}", e),
+            }
+
+            // Update the id_ex register
+            for (field, value) in self.controller.get_state_vec() {
+                // TODO: ensure that only the fields that should be in the id_ex
+                //       register are loaded into it
+                self.id_ex_reg.load(field, value);
+            }
+        }
         // Check if stalling
         // if stalling:
         //      send nop
@@ -294,7 +406,7 @@ impl Sim {
         self.stalling_unit.update_state(&self.id_ex_reg);
     }
 
-    fn execute_stage(&mut self) {
+    fn execute_stage(&mut self, stall: bool, squash: bool) {
         // Check if stalling
         // if stalling:
         //      send nop
@@ -303,7 +415,7 @@ impl Sim {
         self.stalling_unit.update_state(&self.ex_mem_reg);
     }
 
-    fn memory_stage(&mut self) {
+    fn memory_stage(&mut self, stall: bool, squash: bool) {
         // Check if stalling
         // if stalling:
         //      send nop
@@ -311,7 +423,7 @@ impl Sim {
         //      send info to wb stage
     }
 
-    fn writeback_stage(&mut self) {
+    fn writeback_stage(&mut self, stall: bool, squash: bool) {
         // Check if stalling
         // if stalling:
         //      do nothing
@@ -320,11 +432,74 @@ impl Sim {
     }
 
     fn _step(&mut self) {
-        self.fetch_stage();
-        self.decode_stage();
-        self.execute_stage();
-        self.memory_stage();
-        self.writeback_stage();
+        // get signals from stalling unit
+        let (stall_fetch, stall_decode, stall_execute, stall_memory, stall_writeback): (
+            bool,
+            bool,
+            bool,
+            bool,
+            bool,
+        );
+        let (squash_fetch, squash_decode, squash_execute, squash_memory, squash_writeback): (
+            bool,
+            bool,
+            bool,
+            bool,
+            bool,
+        );
+        {
+            use PipeFieldName::*;
+            let s: &self::stalling::StallingUnit = &self.stalling_unit;
+            match (
+                s.get_state(StallFetch).unwrap(),
+                s.get_state(StallDecode).unwrap(),
+                s.get_state(StallExecute).unwrap(),
+                s.get_state(StallMemory).unwrap(),
+                s.get_state(StallWriteback).unwrap(),
+            ) {
+                (
+                    PipeField::StallFetch(sf),
+                    PipeField::StallDecode(sd),
+                    PipeField::StallExecute(se),
+                    PipeField::StallMemory(sm),
+                    PipeField::StallWriteback(sw),
+                ) => {
+                    stall_fetch = sf;
+                    stall_decode = sd;
+                    stall_execute = se;
+                    stall_memory = sm;
+                    stall_writeback = sw;
+                }
+                _ => unreachable!(),
+            }
+            match (
+                s.get_state(SquashFetch).unwrap(),
+                s.get_state(SquashDecode).unwrap(),
+                s.get_state(SquashExecute).unwrap(),
+                s.get_state(SquashMemory).unwrap(),
+                s.get_state(SquashWriteback).unwrap(),
+            ) {
+                (
+                    PipeField::SquashFetch(sf),
+                    PipeField::SquashDecode(sd),
+                    PipeField::SquashExecute(se),
+                    PipeField::SquashMemory(sm),
+                    PipeField::SquashWriteback(sw),
+                ) => {
+                    squash_fetch = sf;
+                    squash_decode = sd;
+                    squash_execute = se;
+                    squash_memory = sm;
+                    squash_writeback = sw;
+                }
+                _ => unreachable!(),
+            }
+        }
+        self.fetch_stage(stall_fetch, squash_fetch);
+        self.decode_stage(stall_decode, squash_decode);
+        self.execute_stage(stall_execute, squash_execute);
+        self.memory_stage(stall_memory, squash_memory);
+        self.writeback_stage(stall_writeback, squash_writeback);
 
         self.if_id_reg.clock();
         self.id_ex_reg.clock();
