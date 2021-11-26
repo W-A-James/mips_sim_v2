@@ -111,6 +111,7 @@ impl Sim {
                     PipeFieldName::MemWidth,
                     PipeFieldName::MemSigned,
                     PipeFieldName::IsBranch,
+                    PipeFieldName::BranchTarget,
                     PipeFieldName::ALURes,
                     PipeFieldName::AluToReg,
                     PipeFieldName::MuldivRes,
@@ -214,7 +215,90 @@ impl Sim {
 }
 
 // --------- Pipeline stage implementation ---------
+macro_rules! get_alu_src_val {
+    ($sim: expr, $alu_src: expr, $field_name: ident) => {{
+        if let PipeField::$field_name(src) = $sim.id_ex_reg.read(PipeFieldName::$field_name) {
+            $alu_src = match src {
+                ALUSrc::Shamt => {
+                    if let PipeField::Shamt(val) = $sim.id_ex_reg.read(PipeFieldName::Shamt) {
+                        val as u32
+                    } else {
+                        unreachable!();
+                    }
+                }
+                ALUSrc::Zero => 0,
+                ALUSrc::Reg1 => {
+                    if let PipeField::Reg1(val) = $sim.id_ex_reg.read(PipeFieldName::Reg1) {
+                        val
+                    } else {
+                        unreachable!();
+                    }
+                }
+                ALUSrc::Reg2 => {
+                    if let PipeField::Reg2(val) = $sim.id_ex_reg.read(PipeFieldName::Reg2) {
+                        val
+                    } else {
+                        unreachable!();
+                    }
+                }
+                ALUSrc::Muldivlo => {
+                    if let PipeField::Muldivlo(val) = $sim.id_ex_reg.read(PipeFieldName::Muldivlo) {
+                        val
+                    } else {
+                        unreachable!();
+                    }
+                }
+                ALUSrc::Muldivhi => {
+                    if let PipeField::Muldivhi(val) = $sim.id_ex_reg.read(PipeFieldName::Muldivhi) {
+                        val
+                    } else {
+                        unreachable!();
+                    }
+                }
+                ALUSrc::SignExtImm => {
+                    if let PipeField::SignExtImm(val) =
+                        $sim.id_ex_reg.read(PipeFieldName::SignExtImm)
+                    {
+                        val
+                    } else {
+                        unreachable!();
+                    }
+                }
+                ALUSrc::ZeroExtImm => {
+                    if let PipeField::SignExtImm(val) =
+                        $sim.id_ex_reg.read(PipeFieldName::SignExtImm)
+                    {
+                        val & 0x0000_FFFF
+                    } else {
+                        unreachable!();
+                    }
+                }
+                ALUSrc::PcPlus4 => {
+                    if let PipeField::PcPlus4(val) = $sim.id_ex_reg.read(PipeFieldName::PcPlus4) {
+                        val
+                    } else {
+                        unreachable!();
+                    }
+                }
+            }
+        } else {
+            unreachable!();
+        }
+    }};
+}
+
 impl Sim {
+    fn sign_ext_imm(imm: u16) -> u32 {
+        let mut rv: u32;
+        if imm >> 15 == 1 {
+            rv = 0xFFFF_0000;
+        } else {
+            rv = 0x0000_0000;
+        }
+        rv |= imm as u32;
+        rv
+    }
+
     fn fetch_stage(&mut self, stall: bool, squash: bool) {
         // Check if this stage is being squashed
         if squash {
@@ -271,9 +355,11 @@ impl Sim {
 
     fn decode_stage(&mut self, stall: bool, squash: bool) {
         if squash {
+            // TODO
         } else if stall {
+            // TODO
         } else {
-            let (instr, instr_pc, pc_plus4): (u32, u32, u32);
+            let instr: u32;
             match (
                 self.if_id_reg.read(PipeFieldName::Instruction),
                 self.if_id_reg.read(PipeFieldName::InstructionPc),
@@ -285,8 +371,8 @@ impl Sim {
                     PipeField::PcPlus4(pc_p_4),
                 ) => {
                     instr = i;
-                    instr_pc = i_pc;
-                    pc_plus4 = pc_p_4;
+                    insert_pipe_value![self.id_ex_reg, InstructionPc, i_pc];
+                    insert_pipe_value![self.id_ex_reg, PcPlus4, pc_p_4];
                 }
                 _ => unreachable!(),
             }
@@ -357,7 +443,14 @@ impl Sim {
                     // Muldivlo
                     insert_pipe_value![self.id_ex_reg, Muldivlo, self.reg_file.read(Register::LO)];
                     // SignExtImm
-                    // TODO: Need to do sign extension
+                    insert_pipe_value![
+                        self.id_ex_reg,
+                        SignExtImm,
+                        match instruction.get_imm() {
+                            Some(shamt) => Sim::sign_ext_imm(shamt),
+                            None => 0,
+                        }
+                    ];
                     // Rt
                     insert_pipe_value![
                         self.id_ex_reg,
@@ -387,6 +480,8 @@ impl Sim {
                     ];
                     // IsNop
                     insert_pipe_value![self.id_ex_reg, IsNop, instruction.is_nop()];
+                    // Halt
+                    insert_pipe_value![self.id_ex_reg, Halt, instruction.is_halt()];
                 }
                 Err(e) => panic!("{:#?}", e),
             }
@@ -412,6 +507,73 @@ impl Sim {
         //      send nop
         //  else:
         //      send info to memory stage
+        if squash {
+        } else if stall {
+        } else {
+            let alu_src_1: u32;
+            let alu_src_2: u32;
+
+            // get alu operands
+            get_alu_src_val![self, alu_src_1, AluSrc1];
+            get_alu_src_val![self, alu_src_2, AluSrc2];
+
+            let alu_result: u32;
+            let alu_operation: ALUOperation;
+            // Get alu op
+            if let PipeField::AluOp(alu_op) = self.id_ex_reg.read(PipeFieldName::AluOp) {
+                alu_operation = alu_op;
+                match alu::ALU::calculate(alu_src_1, alu_src_2, alu_op) {
+                    Ok(result) => {
+                        alu_result = result;
+                    }
+                    Err(e) => {
+                        panic!("{:#?}", e);
+                    }
+                }
+
+                // check if muldiv request is valid
+                if let PipeField::MuldivReqValid(muldiv_request) =
+                    self.id_ex_reg.read(PipeFieldName::MuldivReqValid)
+                {
+                    if muldiv_request {
+                        let muldiv_result = match alu_operation {
+                            ALUOperation::MULT => alu::ALU::multiply(alu_src_1, alu_src_2, true),
+                            ALUOperation::MULTU => alu::ALU::multiply(alu_src_1, alu_src_2, false),
+                            ALUOperation::DIV => alu::ALU::divide(alu_src_1, alu_src_2, true),
+                            ALUOperation::DIVU => alu::ALU::divide(alu_src_1, alu_src_2, false),
+                            _ => unreachable!(),
+                        };
+
+                        // load this into register
+                    }
+                }
+            }
+
+            // Calculate branch target
+            if let PipeField::SignExtImm(sign_ext_imm) =
+                self.id_ex_reg.read(PipeFieldName::SignExtImm)
+            {
+                let offset = 0x0000_FFFF & sign_ext_imm;
+                let branch_target = match self.id_ex_reg.read(PipeFieldName::PcPlus4) {
+                    PipeField::PcPlus4(pc_plus_4) => pc_plus_4 + (offset << 2),
+                    _ => unreachable!(),
+                };
+
+                insert_pipe_value![self.ex_mem_reg, BranchTarget, branch_target];
+            }
+
+            // Determine Register Dst
+            if let PipeField::RegDest(dest) = self.id_ex_reg.read(PipeFieldName::RegDest) {
+                match dest {
+                    RegDest::Rd => {}
+                    RegDest::Ra => {}
+                    RegDest::Rt => {}
+                    RegDest::MulDivHi => {}
+                    RegDest::MulDivLo => {}
+                    RegDest::XXX => {}
+                }
+            }
+        }
         self.stalling_unit.update_state(&self.ex_mem_reg);
     }
 
@@ -534,6 +696,7 @@ mod tests {
     #[test]
     pub fn test_fetch_stage() {
         let mut sim = Sim::new();
+        // Set values
     }
 
     #[test]

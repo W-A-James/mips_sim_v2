@@ -4,8 +4,7 @@ use std::collections::HashMap;
 
 macro_rules! insert_pipe_value {
     ($item: expr, $field_name: ident, $value: expr) => {{
-        $item
-            .load(PipeFieldName::$field_name, PipeField::$field_name($value));
+        $item.load(PipeFieldName::$field_name, PipeField::$field_name($value));
     }};
 }
 
@@ -40,6 +39,7 @@ pub enum PipeField {
     IsJump(bool),
     TakeJump(bool),
     BranchType(BranchType),
+    BranchTarget(u32),
     InstructionPc(u32),
     Instruction(u32),
     InDelaySlot(bool),
@@ -99,6 +99,7 @@ pub enum PipeFieldName {
     IsJump,
     TakeJump,
     BranchType,
+    BranchTarget,
     InstructionPc,
     Instruction,
     InDelaySlot,
@@ -161,7 +162,9 @@ impl ClockedMap<PipeFieldName, PipeField> for PipeRegister {
         if self.current_map.contains_key(&field) {
             self.write_buffer.push((field, value));
         } else {
-            panic!(
+            // NOTE:
+            // Silently ignore here?
+            eprintln!(
                 "Invalid field '{:#?}' for pipe_register with name: {}",
                 field, self.name
             );
