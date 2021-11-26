@@ -8,6 +8,18 @@ macro_rules! insert_pipe_value {
     }};
 }
 
+// TODO: Get this macro working so we only need to explicity declare PipeField
+// and have PipeFieldName generated
+macro_rules! gen_names {
+    (@remove_type $($enum_val:ident)*) => {{}};
+
+    ($vis: vis enum $enum_name: ident $enum_vals:tt) => {{
+        $vis enum $enum_name $enum_vals
+
+        $vis enum $enum_name Name
+    }};
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum PipeField {
     PcPlus4(u32),
@@ -33,6 +45,7 @@ pub enum PipeField {
     AluToReg(bool),
     AluOp(ALUOperation),
     RegDest(RegDest),
+    RegToWrite(u8),
     Halt(bool),
     IsNop(bool),
     IsBranch(bool),
@@ -93,6 +106,7 @@ pub enum PipeFieldName {
     AluToReg,
     AluOp,
     RegDest,
+    RegToWrite,
     Halt,
     IsNop,
     IsBranch,

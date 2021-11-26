@@ -1,5 +1,6 @@
 use super::traits::Field;
 use std::iter::Iterator;
+use num_enum::TryFromPrimitive;
 
 pub const TEXT_START: u32 = 0x0040_0000;
 pub const STACK_POINTER_INITIAL: u32 = 0x7fff_ffff;
@@ -76,7 +77,7 @@ pub enum JumpType {
 }
 
 #[repr(u8)]
-#[derive(Debug, Hash, PartialEq, Eq, Copy, Clone)]
+#[derive(Debug, Hash, PartialEq, Eq, Copy, Clone, TryFromPrimitive)]
 pub enum Register {
     ZERO, // $0
     AT,   // $1

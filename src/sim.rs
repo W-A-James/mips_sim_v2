@@ -9,13 +9,14 @@ mod stalling;
 
 pub mod common;
 pub mod traits;
+
 use common::*;
 use pipe_reg::{PipeField, PipeFieldName};
+use std::convert::TryFrom;
 use traits::ClockedMap;
 
 #[derive(Debug)]
 pub struct Sim {
-    alu: alu::ALU,
     stalling_unit: stalling::StallingUnit,
     reg_file: reg_file::RegFile,
     if_id_reg: pipe_reg::PipeRegister,
@@ -51,7 +52,6 @@ impl Sim {
         let reg_file = reg_file::RegFile::new();
         let controller = controller::Controller::new();
         let memory = mem::Memory::new();
-        let alu = alu::ALU {};
         let stalling_unit = stalling::StallingUnit::new();
         let halt: pipe_reg::PipeRegister;
 
@@ -104,8 +104,8 @@ impl Sim {
                 "EX/MEM",
                 vec![
                     PipeFieldName::Reg2,
-                    PipeFieldName::RegDest,
                     PipeFieldName::WriteReg,
+                    PipeFieldName::RegToWrite,
                     PipeFieldName::WriteMem,
                     PipeFieldName::ReadMem,
                     PipeFieldName::MemWidth,
@@ -132,8 +132,9 @@ impl Sim {
                     PipeFieldName::MuldivReqValid,
                     PipeFieldName::MemData,
                     PipeFieldName::MemWidth,
-                    PipeFieldName::RegDest,
+                    PipeFieldName::RegToWrite,
                     PipeFieldName::WriteReg,
+                    PipeFieldName::RegToWrite,
                     PipeFieldName::AluToReg,
                     PipeFieldName::Halt,
                     PipeFieldName::IsNop,
@@ -163,7 +164,6 @@ impl Sim {
             cause_reg,
             controller,
             memory,
-            alu,
             reg_file,
             halt,
         };
@@ -215,6 +215,27 @@ impl Sim {
 }
 
 // --------- Pipeline stage implementation ---------
+
+macro_rules! get_val_from_pipe_reg {
+    ($reg: expr, $field_name: ident) => {{
+        if let PipeField::$field_name(v) = $reg.read(PipeFieldName::$field_name) {
+            Some(v)
+        } else {
+            None
+        }
+    }};
+}
+
+macro_rules! pass_through_val {
+    ($src: expr, $dest: expr, $field_name: ident) => {{
+        insert_pipe_value![
+            $dest,
+            $field_name,
+            get_val_from_pipe_reg!($src, $field_name).unwrap()
+        ];
+    }};
+}
+
 macro_rules! get_alu_src_val {
     ($sim: expr, $alu_src: expr, $field_name: ident) => {{
         if let PipeField::$field_name(src) = $sim.id_ex_reg.read(PipeFieldName::$field_name) {
@@ -315,40 +336,21 @@ impl Sim {
         //      Read from memory at current value of pc
         //      send value to if/id pipe register
         else {
-            if let PipeField::PC(pc) = self.pc.read(PipeFieldName::PC) {
-                let instr = self.memory.read(pc);
-                insert_pipe_value![self.if_id_reg, Instruction, instr];
-                insert_pipe_value![self.if_id_reg, InstructionPc, pc];
-                insert_pipe_value![self.if_id_reg, PcPlus4, pc + 4];
+            let pc = get_val_from_pipe_reg!(self.pc, PC).unwrap();
+            let instr = self.memory.read(pc);
+            insert_pipe_value![self.if_id_reg, Instruction, instr];
+            insert_pipe_value![self.if_id_reg, InstructionPc, pc];
+            insert_pipe_value![self.if_id_reg, PcPlus4, pc + 4];
 
-                let (is_branch, is_jump, alu_res_zero): (bool, bool, bool);
-                match (
-                    self.ex_mem_reg.read(PipeFieldName::IsBranch),
-                    self.ex_mem_reg.read(PipeFieldName::IsJump),
-                    self.ex_mem_reg.read(PipeFieldName::ALURes),
-                ) {
-                    (
-                        PipeField::IsBranch(branch),
-                        PipeField::IsJump(jump),
-                        PipeField::ALURes(alu_res),
-                    ) => {
-                        is_branch = branch;
-                        is_jump = jump;
-                        alu_res_zero = alu_res == 0u32;
-                    }
-                    _ => unreachable!(),
-                }
+            let is_branch = get_val_from_pipe_reg!(self.ex_mem_reg, IsBranch).unwrap();
+            let is_jump = get_val_from_pipe_reg!(self.ex_mem_reg, IsJump).unwrap();
+            let alu_res_zero = get_val_from_pipe_reg!(self.ex_mem_reg, ALURes).unwrap() == 0;
 
-                if (is_branch || is_jump) && alu_res_zero {
-                    match self.ex_mem_reg.read(PipeFieldName::JumpTarget) {
-                        PipeField::JumpTarget(target) => {
-                            insert_pipe_value![self.pc, PC, target];
-                        }
-                        _ => unreachable!(),
-                    }
-                } else {
-                    insert_pipe_value![self.pc, PC, pc + 4];
-                }
+            if (is_branch || is_jump) && alu_res_zero {
+                let jump_target = get_val_from_pipe_reg!(self.ex_mem_reg, JumpTarget).unwrap();
+                insert_pipe_value![self.pc, PC, jump_target];
+            } else {
+                insert_pipe_value![self.pc, PC, pc + 4];
             }
         }
     }
@@ -359,23 +361,9 @@ impl Sim {
         } else if stall {
             // TODO
         } else {
-            let instr: u32;
-            match (
-                self.if_id_reg.read(PipeFieldName::Instruction),
-                self.if_id_reg.read(PipeFieldName::InstructionPc),
-                self.if_id_reg.read(PipeFieldName::PcPlus4),
-            ) {
-                (
-                    PipeField::Instruction(i),
-                    PipeField::InstructionPc(i_pc),
-                    PipeField::PcPlus4(pc_p_4),
-                ) => {
-                    instr = i;
-                    insert_pipe_value![self.id_ex_reg, InstructionPc, i_pc];
-                    insert_pipe_value![self.id_ex_reg, PcPlus4, pc_p_4];
-                }
-                _ => unreachable!(),
-            }
+            let instr = get_val_from_pipe_reg!(self.if_id_reg, Instruction).unwrap();
+            pass_through_val!(self.if_id_reg, self.id_ex_reg, InstructionPc);
+            pass_through_val!(self.if_id_reg, self.id_ex_reg, PcPlus4);
             let parsed_instr = instruction::Instruction::new(instr);
             match parsed_instr {
                 Ok(instruction) => {
@@ -434,10 +422,7 @@ impl Sim {
                         _ => {}
                     }
                     // PcPlus4
-                    self.id_ex_reg.load(
-                        PipeFieldName::PcPlus4,
-                        self.if_id_reg.read(PipeFieldName::PcPlus4),
-                    );
+                    pass_through_val!(self.if_id_reg, self.id_ex_reg, PcPlus4);
                     // Muldivhi
                     insert_pipe_value![self.id_ex_reg, Muldivhi, self.reg_file.read(Register::HI)];
                     // Muldivlo
@@ -517,80 +502,138 @@ impl Sim {
             get_alu_src_val![self, alu_src_1, AluSrc1];
             get_alu_src_val![self, alu_src_2, AluSrc2];
 
-            let alu_result: u32;
-            let alu_operation: ALUOperation;
-            // Get alu op
-            if let PipeField::AluOp(alu_op) = self.id_ex_reg.read(PipeFieldName::AluOp) {
-                alu_operation = alu_op;
-                match alu::ALU::calculate(alu_src_1, alu_src_2, alu_op) {
-                    Ok(result) => {
-                        alu_result = result;
-                    }
-                    Err(e) => {
-                        panic!("{:#?}", e);
-                    }
-                }
+            let alu_operation = get_val_from_pipe_reg!(self.id_ex_reg, AluOp).unwrap();
 
-                // check if muldiv request is valid
-                if let PipeField::MuldivReqValid(muldiv_request) =
-                    self.id_ex_reg.read(PipeFieldName::MuldivReqValid)
-                {
-                    if muldiv_request {
-                        let muldiv_result = match alu_operation {
-                            ALUOperation::MULT => alu::ALU::multiply(alu_src_1, alu_src_2, true),
-                            ALUOperation::MULTU => alu::ALU::multiply(alu_src_1, alu_src_2, false),
-                            ALUOperation::DIV => alu::ALU::divide(alu_src_1, alu_src_2, true),
-                            ALUOperation::DIVU => alu::ALU::divide(alu_src_1, alu_src_2, false),
-                            _ => unreachable!(),
-                        };
+            let alu_result = alu::calculate(alu_src_1, alu_src_2, alu_operation).unwrap();
+            insert_pipe_value![self.ex_mem_reg, ALURes, alu_result];
 
-                        // load this into register
-                    }
-                }
-            }
-
-            // Calculate branch target
-            if let PipeField::SignExtImm(sign_ext_imm) =
-                self.id_ex_reg.read(PipeFieldName::SignExtImm)
-            {
-                let offset = 0x0000_FFFF & sign_ext_imm;
-                let branch_target = match self.id_ex_reg.read(PipeFieldName::PcPlus4) {
-                    PipeField::PcPlus4(pc_plus_4) => pc_plus_4 + (offset << 2),
+            if get_val_from_pipe_reg!(self.id_ex_reg, MuldivReqValid).unwrap() {
+                let muldiv_result = match alu_operation {
+                    ALUOperation::MULT => alu::multiply(alu_src_1, alu_src_2, true),
+                    ALUOperation::MULTU => alu::multiply(alu_src_1, alu_src_2, false),
+                    ALUOperation::DIV => alu::divide(alu_src_1, alu_src_2, true),
+                    ALUOperation::DIVU => alu::divide(alu_src_1, alu_src_2, false),
                     _ => unreachable!(),
                 };
-
-                insert_pipe_value![self.ex_mem_reg, BranchTarget, branch_target];
-            }
-
-            // Determine Register Dst
-            if let PipeField::RegDest(dest) = self.id_ex_reg.read(PipeFieldName::RegDest) {
-                match dest {
-                    RegDest::Rd => {}
-                    RegDest::Ra => {}
-                    RegDest::Rt => {}
-                    RegDest::MulDivHi => {}
-                    RegDest::MulDivLo => {}
-                    RegDest::XXX => {}
-                }
+                insert_pipe_value![self.ex_mem_reg, MuldivRes, muldiv_result];
             }
         }
+
+        // Calculate branch target
+        let sign_ext_imm = get_val_from_pipe_reg!(self.id_ex_reg, SignExtImm).unwrap();
+        let offset = 0x0000_FFFF & sign_ext_imm;
+        let branch_target =
+            get_val_from_pipe_reg!(self.id_ex_reg, PcPlus4).unwrap() + (offset << 2);
+        insert_pipe_value![self.ex_mem_reg, BranchTarget, branch_target];
+
+        // Determine RegToWrite
+        let dest = get_val_from_pipe_reg!(self.id_ex_reg, RegDest).unwrap();
+        match dest {
+            RegDest::Rd => {
+                let rd: u8 = get_val_from_pipe_reg!(self.id_ex_reg, Rd).unwrap();
+                insert_pipe_value!(self.ex_mem_reg, RegToWrite, rd);
+            }
+            RegDest::Rt => {
+                let rt: u8 = get_val_from_pipe_reg!(self.id_ex_reg, Rt).unwrap();
+                insert_pipe_value!(self.ex_mem_reg, RegToWrite, rt);
+            }
+            RegDest::Ra => {
+                insert_pipe_value![self.ex_mem_reg, RegToWrite, Register::RA as u8];
+            }
+            RegDest::MulDivHi => {
+                insert_pipe_value![self.ex_mem_reg, RegToWrite, Register::HI as u8];
+            }
+            RegDest::MulDivLo => {
+                insert_pipe_value![self.ex_mem_reg, RegToWrite, Register::LO as u8];
+            }
+            RegDest::XXX => {
+                insert_pipe_value![self.ex_mem_reg, RegToWrite, 0];
+            }
+        }
+        pass_through_val!(self.id_ex_reg, self.ex_mem_reg, Reg2);
+        pass_through_val!(self.id_ex_reg, self.ex_mem_reg, WriteReg);
+        pass_through_val!(self.id_ex_reg, self.ex_mem_reg, WriteMem);
+        pass_through_val!(self.id_ex_reg, self.ex_mem_reg, ReadMem);
+        pass_through_val!(self.id_ex_reg, self.ex_mem_reg, MemWidth);
+        pass_through_val!(self.id_ex_reg, self.ex_mem_reg, MemSigned);
+        pass_through_val!(self.id_ex_reg, self.ex_mem_reg, IsBranch);
+        pass_through_val!(self.id_ex_reg, self.ex_mem_reg, AluToReg);
+        pass_through_val!(self.id_ex_reg, self.ex_mem_reg, MuldivReqValid);
+        pass_through_val!(self.id_ex_reg, self.ex_mem_reg, Halt);
+        pass_through_val!(self.id_ex_reg, self.ex_mem_reg, IsNop);
+        pass_through_val!(self.id_ex_reg, self.ex_mem_reg, Instruction);
+        pass_through_val!(self.id_ex_reg, self.ex_mem_reg, InstructionPc);
+        pass_through_val!(self.id_ex_reg, self.ex_mem_reg, InDelaySlot);
+
         self.stalling_unit.update_state(&self.ex_mem_reg);
     }
 
     fn memory_stage(&mut self, stall: bool, squash: bool) {
-        // Check if stalling
-        // if stalling:
-        //      send nop
-        //  else:
-        //      send info to wb stage
+        if squash {
+        } else if stall {
+        } else {
+            let alu_res = get_val_from_pipe_reg!(self.ex_mem_reg, ALURes).unwrap();
+            let write_mem = get_val_from_pipe_reg!(self.ex_mem_reg, WriteMem).unwrap();
+            let read_mem = get_val_from_pipe_reg!(self.ex_mem_reg, ReadMem).unwrap();
+
+            if read_mem {
+                let mem_val = self.memory.read(alu_res);
+                insert_pipe_value!(self.mem_wb_reg, MemData, mem_val);
+            } else if write_mem {
+                let reg_2_data = get_val_from_pipe_reg!(self.ex_mem_reg, Reg2).unwrap();
+                // TODO: Deal with mem width here for lh, lb, lw, etc
+                self.memory.load(alu_res, reg_2_data);
+            }
+
+            pass_through_val!(self.ex_mem_reg, self.mem_wb_reg, ALURes);
+            pass_through_val!(self.ex_mem_reg, self.mem_wb_reg, MuldivRes);
+            pass_through_val!(self.ex_mem_reg, self.mem_wb_reg, MuldivReqValid);
+            pass_through_val!(self.ex_mem_reg, self.mem_wb_reg, MemData);
+            pass_through_val!(self.ex_mem_reg, self.mem_wb_reg, MemWidth);
+            pass_through_val!(self.ex_mem_reg, self.mem_wb_reg, RegToWrite);
+            pass_through_val!(self.ex_mem_reg, self.mem_wb_reg, WriteReg);
+            pass_through_val!(self.ex_mem_reg, self.mem_wb_reg, AluToReg);
+            pass_through_val!(self.ex_mem_reg, self.mem_wb_reg, Halt);
+            pass_through_val!(self.ex_mem_reg, self.mem_wb_reg, IsNop);
+            pass_through_val!(self.ex_mem_reg, self.mem_wb_reg, InDelaySlot);
+            pass_through_val!(self.ex_mem_reg, self.mem_wb_reg, Instruction);
+            pass_through_val!(self.ex_mem_reg, self.mem_wb_reg, InstructionPc);
+        }
     }
 
     fn writeback_stage(&mut self, stall: bool, squash: bool) {
-        // Check if stalling
-        // if stalling:
-        //      do nothing
-        //  else:
-        //      send info to registers
+        if squash {
+        } else if stall {
+        } else {
+            let alu_to_reg = get_val_from_pipe_reg!(self.mem_wb_reg, AluToReg).unwrap();
+            let reg_write = get_val_from_pipe_reg!(self.mem_wb_reg, WriteReg).unwrap();
+            let reg_target = get_val_from_pipe_reg!(self.mem_wb_reg, RegToWrite).unwrap();
+            let reg_target = Register::try_from(reg_target).unwrap();
+
+            if reg_write {
+                if alu_to_reg {
+                    let alu_res = get_val_from_pipe_reg!(self.mem_wb_reg, ALURes).unwrap();
+                    self.reg_file.load(reg_target, alu_res);
+                } else {
+                    let mut mem_data = get_val_from_pipe_reg!(self.mem_wb_reg, MemData).unwrap();
+                    let mem_width = get_val_from_pipe_reg!(self.mem_wb_reg, MemWidth).unwrap();
+
+                    match mem_width {
+                        1 => {
+                            mem_data &= 0x0000_00FF;
+                        }
+                        2 => {
+                            mem_data &= 0x0000_FFFF;
+                        }
+                        4 => {}
+                        _ => unreachable!(),
+                    }
+                    self.reg_file.load(reg_target, mem_data);
+                }
+
+                self.stalling_unit.clear_write_in_flight(reg_target);
+            }
+        }
     }
 
     fn _step(&mut self) {
