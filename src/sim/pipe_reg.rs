@@ -1,6 +1,6 @@
 use super::common::{ALUOperation, ALUSrc, BranchType, RegDest, RegSrc};
 use super::traits::{ClockedMap, Field, Value};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 macro_rules! insert_pipe_value {
     ($item: expr, $field_name: ident, $value: expr) => {{
@@ -20,7 +20,7 @@ macro_rules! gen_names {
     }};
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PipeField {
     PcPlus4(u32),
     Reg1(u32),
@@ -144,11 +144,17 @@ pub enum PipeFieldName {
 impl Value for PipeField {}
 impl Field for PipeFieldName {}
 
+#[derive(Hash, Eq, PartialEq, Debug)]
+struct PipeVal {
+    pub name: PipeFieldName,
+    pub value: PipeField,
+}
+
 #[derive(Debug)]
 pub struct PipeRegister {
     name: String,
     current_map: HashMap<PipeFieldName, PipeField>,
-    write_buffer: Vec<(PipeFieldName, PipeField)>,
+    write_buffer: HashSet<PipeVal>,
 }
 
 impl PipeRegister {
@@ -158,7 +164,7 @@ impl PipeRegister {
         for f in fields {
             current_map.insert(f, PipeField::XXX);
         }
-        let write_buffer = Vec::new();
+        let write_buffer = HashSet::new();
         PipeRegister {
             name: String::from(name),
             current_map,
@@ -174,7 +180,7 @@ impl PipeRegister {
 impl ClockedMap<PipeFieldName, PipeField> for PipeRegister {
     fn load(&mut self, field: PipeFieldName, value: PipeField) {
         if self.current_map.contains_key(&field) {
-            self.write_buffer.push((field, value));
+            self.write_buffer.insert(PipeVal { name: field, value });
         } else {
             // NOTE:
             // Silently ignore here?
@@ -186,8 +192,10 @@ impl ClockedMap<PipeFieldName, PipeField> for PipeRegister {
     }
 
     fn clock(&mut self) {
-        for (k, v) in self.write_buffer.drain(..) {
-            self.current_map.insert(k, v).unwrap();
+        for pipe_val in self.write_buffer.drain() {
+            self.current_map
+                .insert(pipe_val.name, pipe_val.value)
+                .unwrap();
         }
     }
 

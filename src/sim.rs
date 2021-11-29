@@ -238,72 +238,20 @@ macro_rules! pass_through_val {
 
 macro_rules! get_alu_src_val {
     ($sim: expr, $alu_src: expr, $field_name: ident) => {{
-        if let PipeField::$field_name(src) = $sim.id_ex_reg.read(PipeFieldName::$field_name) {
-            $alu_src = match src {
-                ALUSrc::Shamt => {
-                    if let PipeField::Shamt(val) = $sim.id_ex_reg.read(PipeFieldName::Shamt) {
-                        val as u32
-                    } else {
-                        unreachable!();
-                    }
-                }
-                ALUSrc::Zero => 0,
-                ALUSrc::Reg1 => {
-                    if let PipeField::Reg1(val) = $sim.id_ex_reg.read(PipeFieldName::Reg1) {
-                        val
-                    } else {
-                        unreachable!();
-                    }
-                }
-                ALUSrc::Reg2 => {
-                    if let PipeField::Reg2(val) = $sim.id_ex_reg.read(PipeFieldName::Reg2) {
-                        val
-                    } else {
-                        unreachable!();
-                    }
-                }
-                ALUSrc::Muldivlo => {
-                    if let PipeField::Muldivlo(val) = $sim.id_ex_reg.read(PipeFieldName::Muldivlo) {
-                        val
-                    } else {
-                        unreachable!();
-                    }
-                }
-                ALUSrc::Muldivhi => {
-                    if let PipeField::Muldivhi(val) = $sim.id_ex_reg.read(PipeFieldName::Muldivhi) {
-                        val
-                    } else {
-                        unreachable!();
-                    }
-                }
-                ALUSrc::SignExtImm => {
-                    if let PipeField::SignExtImm(val) =
-                        $sim.id_ex_reg.read(PipeFieldName::SignExtImm)
-                    {
-                        val
-                    } else {
-                        unreachable!();
-                    }
-                }
-                ALUSrc::ZeroExtImm => {
-                    if let PipeField::SignExtImm(val) =
-                        $sim.id_ex_reg.read(PipeFieldName::SignExtImm)
-                    {
-                        val & 0x0000_FFFF
-                    } else {
-                        unreachable!();
-                    }
-                }
-                ALUSrc::PcPlus4 => {
-                    if let PipeField::PcPlus4(val) = $sim.id_ex_reg.read(PipeFieldName::PcPlus4) {
-                        val
-                    } else {
-                        unreachable!();
-                    }
-                }
+        let src = get_val_from_pipe_reg!($sim.id_ex_reg, $field_name).unwrap();
+        $alu_src = match src {
+            ALUSrc::Shamt => get_val_from_pipe_reg!($sim.id_ex_reg, Shamt).unwrap() as u32,
+
+            ALUSrc::Zero => 0,
+            ALUSrc::Reg1 => get_val_from_pipe_reg!($sim.id_ex_reg, Reg1).unwrap(),
+            ALUSrc::Reg2 => get_val_from_pipe_reg!($sim.id_ex_reg, Reg2).unwrap(),
+            ALUSrc::Muldivlo => get_val_from_pipe_reg!($sim.id_ex_reg, Muldivlo).unwrap(),
+            ALUSrc::Muldivhi => get_val_from_pipe_reg!($sim.id_ex_reg, Muldivhi).unwrap(),
+            ALUSrc::SignExtImm => get_val_from_pipe_reg!($sim.id_ex_reg, SignExtImm).unwrap(),
+            ALUSrc::ZeroExtImm => {
+                get_val_from_pipe_reg!($sim.id_ex_reg, SignExtImm).unwrap() & 0x0000_FFFF
             }
-        } else {
-            unreachable!();
+            ALUSrc::PcPlus4 => get_val_from_pipe_reg!($sim.id_ex_reg, PcPlus4).unwrap(),
         }
     }};
 }
@@ -421,6 +369,18 @@ impl Sim {
                         PipeField::Reg1Src(RegSrc::XXX) => {}
                         _ => {}
                     }
+
+                    match self.controller.get_state(PipeFieldName::IsJump).unwrap() {
+                        PipeField::IsJump(is_jump) => {
+                            if is_jump {
+                                // Set squash decode to true
+                                insert_pipe_value!(self.stalling_unit, SquashFetch, true);
+                                // Load jump target into PC
+                                insert_pipe_value!(self.pc, PC, instruction.get_address().unwrap());
+                            }
+                        }
+                        _ => unreachable!(),
+                    }
                     // PcPlus4
                     pass_through_val!(self.if_id_reg, self.id_ex_reg, PcPlus4);
                     // Muldivhi
@@ -478,12 +438,6 @@ impl Sim {
                 self.id_ex_reg.load(field, value);
             }
         }
-        // Check if stalling
-        // if stalling:
-        //      send nop
-        //  else:
-        //      update controller with instruction value
-        self.stalling_unit.update_state(&self.id_ex_reg);
     }
 
     fn execute_stage(&mut self, stall: bool, squash: bool) {
@@ -517,55 +471,59 @@ impl Sim {
                 };
                 insert_pipe_value![self.ex_mem_reg, MuldivRes, muldiv_result];
             }
+            // Calculate branch target
+            let sign_ext_imm = get_val_from_pipe_reg!(self.id_ex_reg, SignExtImm).unwrap();
+            let offset = 0x0000_FFFF & sign_ext_imm;
+            let branch_target =
+                get_val_from_pipe_reg!(self.id_ex_reg, PcPlus4).unwrap() + (offset << 2);
+            insert_pipe_value![self.ex_mem_reg, BranchTarget, branch_target];
+
+            // Determine RegToWrite
+            let dest = get_val_from_pipe_reg!(self.id_ex_reg, RegDest).unwrap();
+            match dest {
+                RegDest::Rd => {
+                    let rd: u8 = get_val_from_pipe_reg!(self.id_ex_reg, Rd).unwrap();
+                    insert_pipe_value!(self.ex_mem_reg, RegToWrite, rd);
+                }
+                RegDest::Rt => {
+                    let rt: u8 = get_val_from_pipe_reg!(self.id_ex_reg, Rt).unwrap();
+                    insert_pipe_value!(self.ex_mem_reg, RegToWrite, rt);
+                }
+                RegDest::Ra => {
+                    insert_pipe_value![self.ex_mem_reg, RegToWrite, Register::RA as u8];
+                }
+                RegDest::MulDivHi => {
+                    insert_pipe_value![self.ex_mem_reg, RegToWrite, Register::HI as u8];
+                }
+                RegDest::MulDivLo => {
+                    insert_pipe_value![self.ex_mem_reg, RegToWrite, Register::LO as u8];
+                }
+                RegDest::XXX => {
+                    insert_pipe_value![self.ex_mem_reg, RegToWrite, 0];
+                }
+            }
+
+            let is_branch = get_val_from_pipe_reg!(self.id_ex_reg, IsBranch).unwrap();
+            if is_branch && alu_result == 0 {
+                // set squash execute and squash_decode
+                insert_pipe_value!(self.stalling_unit, SquashExecute, true);
+                insert_pipe_value!(self.stalling_unit, SquashDecode, true);
+            }
+            pass_through_val!(self.id_ex_reg, self.ex_mem_reg, Reg2);
+            pass_through_val!(self.id_ex_reg, self.ex_mem_reg, WriteReg);
+            pass_through_val!(self.id_ex_reg, self.ex_mem_reg, WriteMem);
+            pass_through_val!(self.id_ex_reg, self.ex_mem_reg, ReadMem);
+            pass_through_val!(self.id_ex_reg, self.ex_mem_reg, MemWidth);
+            pass_through_val!(self.id_ex_reg, self.ex_mem_reg, MemSigned);
+            pass_through_val!(self.id_ex_reg, self.ex_mem_reg, IsBranch);
+            pass_through_val!(self.id_ex_reg, self.ex_mem_reg, AluToReg);
+            pass_through_val!(self.id_ex_reg, self.ex_mem_reg, MuldivReqValid);
+            pass_through_val!(self.id_ex_reg, self.ex_mem_reg, Halt);
+            pass_through_val!(self.id_ex_reg, self.ex_mem_reg, IsNop);
+            pass_through_val!(self.id_ex_reg, self.ex_mem_reg, Instruction);
+            pass_through_val!(self.id_ex_reg, self.ex_mem_reg, InstructionPc);
+            pass_through_val!(self.id_ex_reg, self.ex_mem_reg, InDelaySlot);
         }
-
-        // Calculate branch target
-        let sign_ext_imm = get_val_from_pipe_reg!(self.id_ex_reg, SignExtImm).unwrap();
-        let offset = 0x0000_FFFF & sign_ext_imm;
-        let branch_target =
-            get_val_from_pipe_reg!(self.id_ex_reg, PcPlus4).unwrap() + (offset << 2);
-        insert_pipe_value![self.ex_mem_reg, BranchTarget, branch_target];
-
-        // Determine RegToWrite
-        let dest = get_val_from_pipe_reg!(self.id_ex_reg, RegDest).unwrap();
-        match dest {
-            RegDest::Rd => {
-                let rd: u8 = get_val_from_pipe_reg!(self.id_ex_reg, Rd).unwrap();
-                insert_pipe_value!(self.ex_mem_reg, RegToWrite, rd);
-            }
-            RegDest::Rt => {
-                let rt: u8 = get_val_from_pipe_reg!(self.id_ex_reg, Rt).unwrap();
-                insert_pipe_value!(self.ex_mem_reg, RegToWrite, rt);
-            }
-            RegDest::Ra => {
-                insert_pipe_value![self.ex_mem_reg, RegToWrite, Register::RA as u8];
-            }
-            RegDest::MulDivHi => {
-                insert_pipe_value![self.ex_mem_reg, RegToWrite, Register::HI as u8];
-            }
-            RegDest::MulDivLo => {
-                insert_pipe_value![self.ex_mem_reg, RegToWrite, Register::LO as u8];
-            }
-            RegDest::XXX => {
-                insert_pipe_value![self.ex_mem_reg, RegToWrite, 0];
-            }
-        }
-        pass_through_val!(self.id_ex_reg, self.ex_mem_reg, Reg2);
-        pass_through_val!(self.id_ex_reg, self.ex_mem_reg, WriteReg);
-        pass_through_val!(self.id_ex_reg, self.ex_mem_reg, WriteMem);
-        pass_through_val!(self.id_ex_reg, self.ex_mem_reg, ReadMem);
-        pass_through_val!(self.id_ex_reg, self.ex_mem_reg, MemWidth);
-        pass_through_val!(self.id_ex_reg, self.ex_mem_reg, MemSigned);
-        pass_through_val!(self.id_ex_reg, self.ex_mem_reg, IsBranch);
-        pass_through_val!(self.id_ex_reg, self.ex_mem_reg, AluToReg);
-        pass_through_val!(self.id_ex_reg, self.ex_mem_reg, MuldivReqValid);
-        pass_through_val!(self.id_ex_reg, self.ex_mem_reg, Halt);
-        pass_through_val!(self.id_ex_reg, self.ex_mem_reg, IsNop);
-        pass_through_val!(self.id_ex_reg, self.ex_mem_reg, Instruction);
-        pass_through_val!(self.id_ex_reg, self.ex_mem_reg, InstructionPc);
-        pass_through_val!(self.id_ex_reg, self.ex_mem_reg, InDelaySlot);
-
-        self.stalling_unit.update_state(&self.ex_mem_reg);
     }
 
     fn memory_stage(&mut self, stall: bool, squash: bool) {
@@ -638,68 +596,18 @@ impl Sim {
 
     fn _step(&mut self) {
         // get signals from stalling unit
-        let (stall_fetch, stall_decode, stall_execute, stall_memory, stall_writeback): (
-            bool,
-            bool,
-            bool,
-            bool,
-            bool,
-        );
-        let (squash_fetch, squash_decode, squash_execute, squash_memory, squash_writeback): (
-            bool,
-            bool,
-            bool,
-            bool,
-            bool,
-        );
-        {
-            use PipeFieldName::*;
-            let s: &self::stalling::StallingUnit = &self.stalling_unit;
-            match (
-                s.get_state(StallFetch).unwrap(),
-                s.get_state(StallDecode).unwrap(),
-                s.get_state(StallExecute).unwrap(),
-                s.get_state(StallMemory).unwrap(),
-                s.get_state(StallWriteback).unwrap(),
-            ) {
-                (
-                    PipeField::StallFetch(sf),
-                    PipeField::StallDecode(sd),
-                    PipeField::StallExecute(se),
-                    PipeField::StallMemory(sm),
-                    PipeField::StallWriteback(sw),
-                ) => {
-                    stall_fetch = sf;
-                    stall_decode = sd;
-                    stall_execute = se;
-                    stall_memory = sm;
-                    stall_writeback = sw;
-                }
-                _ => unreachable!(),
-            }
-            match (
-                s.get_state(SquashFetch).unwrap(),
-                s.get_state(SquashDecode).unwrap(),
-                s.get_state(SquashExecute).unwrap(),
-                s.get_state(SquashMemory).unwrap(),
-                s.get_state(SquashWriteback).unwrap(),
-            ) {
-                (
-                    PipeField::SquashFetch(sf),
-                    PipeField::SquashDecode(sd),
-                    PipeField::SquashExecute(se),
-                    PipeField::SquashMemory(sm),
-                    PipeField::SquashWriteback(sw),
-                ) => {
-                    squash_fetch = sf;
-                    squash_decode = sd;
-                    squash_execute = se;
-                    squash_memory = sm;
-                    squash_writeback = sw;
-                }
-                _ => unreachable!(),
-            }
-        }
+        let stall_fetch = get_val_from_pipe_reg!(self.stalling_unit, StallFetch).unwrap();
+        let stall_decode = get_val_from_pipe_reg!(self.stalling_unit, StallDecode).unwrap();
+        let stall_execute = get_val_from_pipe_reg!(self.stalling_unit, StallExecute).unwrap();
+        let stall_memory = get_val_from_pipe_reg!(self.stalling_unit, StallMemory).unwrap();
+        let stall_writeback = get_val_from_pipe_reg!(self.stalling_unit, StallWriteback).unwrap();
+
+        let squash_fetch = get_val_from_pipe_reg!(self.stalling_unit, SquashFetch).unwrap();
+        let squash_decode = get_val_from_pipe_reg!(self.stalling_unit, SquashDecode).unwrap();
+        let squash_execute = get_val_from_pipe_reg!(self.stalling_unit, SquashExecute).unwrap();
+        let squash_memory = get_val_from_pipe_reg!(self.stalling_unit, SquashMemory).unwrap();
+        let squash_writeback = get_val_from_pipe_reg!(self.stalling_unit, SquashWriteback).unwrap();
+
         self.fetch_stage(stall_fetch, squash_fetch);
         self.decode_stage(stall_decode, squash_decode);
         self.execute_stage(stall_execute, squash_execute);
@@ -710,6 +618,8 @@ impl Sim {
         self.id_ex_reg.clock();
         self.ex_mem_reg.clock();
         self.mem_wb_reg.clock();
+
+        self.stalling_unit.clock();
 
         // TODO:
         self.pc.clock();

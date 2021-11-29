@@ -1,7 +1,7 @@
 use super::common::{ALUOperation, ALUSrc, RegDest, RegSrc, Register};
 use super::instruction::{FuncCode, Instruction, OpCode};
 use super::pipe_reg::{PipeField, PipeFieldName};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::iter::Iterator;
 
 macro_rules! set_signal_value {

@@ -6,7 +6,7 @@ pub const TEXT_START: u32 = 0x0040_0000;
 pub const STACK_POINTER_INITIAL: u32 = 0x7fff_ffff;
 pub const HALT_INSTRUCTION: u32 = 0xDEAD_BEEF;
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum ALUSrc {
     Zero,
     Reg1,
@@ -18,7 +18,7 @@ pub enum ALUSrc {
     ZeroExtImm,
     Shamt,
 }
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum ALUOperation {
     ADD,
     ADDU,
@@ -44,7 +44,7 @@ pub enum ALUOperation {
     CLZ,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RegDest {
     Rt,
     Rd,
@@ -54,7 +54,7 @@ pub enum RegDest {
     XXX,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum BranchType {
     Beq,
     Bgez,
@@ -67,7 +67,7 @@ pub enum BranchType {
     XXX,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum JumpType {
     J,
     Jal,
@@ -115,7 +115,7 @@ pub enum Register {
     LO,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RegSrc {
     Rt,
     Rs,
