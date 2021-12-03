@@ -1,0 +1,1 @@
+mips-linux-gnu-objdump: section '.data' mentioned in a -j option, but not found in any input file

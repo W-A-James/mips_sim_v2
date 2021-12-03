@@ -1,0 +1,5 @@
+.text
+lui $t0, 0xffff
+lui $t1, 0xdead
+lui $t2, 0xbeef
+lui $t3, 0xfeed
