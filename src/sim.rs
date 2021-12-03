@@ -294,6 +294,7 @@ impl Sim {
             let is_jump = get_val_from_pipe_reg!(self.ex_mem_reg, IsJump).unwrap();
             let alu_res_zero = get_val_from_pipe_reg!(self.ex_mem_reg, ALURes).unwrap() == 0;
 
+            // FIXME:
             if (is_branch || is_jump) && alu_res_zero {
                 let jump_target = get_val_from_pipe_reg!(self.ex_mem_reg, JumpTarget).unwrap();
                 insert_pipe_value![self.pc, PC, jump_target];
@@ -533,14 +534,64 @@ impl Sim {
             let alu_res = get_val_from_pipe_reg!(self.ex_mem_reg, ALURes).unwrap();
             let write_mem = get_val_from_pipe_reg!(self.ex_mem_reg, WriteMem).unwrap();
             let read_mem = get_val_from_pipe_reg!(self.ex_mem_reg, ReadMem).unwrap();
+            let mem_width = get_val_from_pipe_reg!(self.ex_mem_reg, MemWidth).unwrap();
 
             if read_mem {
                 let mem_val = self.memory.read(alu_res);
                 insert_pipe_value!(self.mem_wb_reg, MemData, mem_val);
             } else if write_mem {
                 let reg_2_data = get_val_from_pipe_reg!(self.ex_mem_reg, Reg2).unwrap();
-                // TODO: Deal with mem width here for lh, lb, lw, etc
-                self.memory.load(alu_res, reg_2_data);
+
+                let rem = alu_res % 4;
+                match rem {
+                    0 => {
+                        let mut input_mask = 0u32;
+                        let mut output_mask = 0u32;
+                        for _ in 0..mem_width {
+                            input_mask = (input_mask << 8) | 0xFF;
+                            output_mask = (output_mask | 0xFF00_0000) >> 8;
+                        }
+
+                        let lower_bytes = (input_mask & reg_2_data) << ((4 - mem_width) * 8);
+                        let current_mem_val = self.memory.read(alu_res);
+                        let output_val = (current_mem_val & output_mask) | lower_bytes;
+                        self.memory.load(alu_res, output_val);
+                    }
+                    rem => {
+                        if mem_width as u32 > rem {
+                            let left_mem_val = self.memory.read(alu_res - rem);
+                            let right_mem_val = self.memory.read(alu_res - rem + 4);
+
+                            let mut left_mask = 0;
+                            let mut right_mask = 0;
+
+                            for _ in 0..rem {
+                                left_mask = (left_mask | 0xFF) << 8;
+                                right_mask = (right_mask | 0xFF00_0000) >> 8;
+                            }
+
+                            let lower_bytes = (reg_2_data << ((4 - rem) * 8)) & right_mask;
+                            let upper_bytes = (reg_2_data >> (rem * 8)) & left_mask;
+
+                            let left_val_to_write = (left_mem_val & !left_mask) | upper_bytes;
+                            let right_val_to_write = (right_mem_val & !right_mask) | lower_bytes;
+
+                            self.memory.load(alu_res - rem, left_val_to_write);
+                            self.memory.load(alu_res - rem + 4, right_val_to_write);
+                        } else {
+                            let current_mem_val = self.memory.read(alu_res - rem);
+                            let mut mask = 0;
+                            for _ in 0..mem_width {
+                                mask = (mask | 0xFF) << 8;
+                            }
+                            let val = reg_2_data << ((4 - rem) * 8);
+                            mask = mask << ((4 - rem) * 8);
+
+                            let output_val = (current_mem_val & !mask) | (val & mask);
+                            self.memory.load(alu_res - rem, output_val);
+                        }
+                    }
+                }
             }
 
             pass_through_val!(self.ex_mem_reg, self.mem_wb_reg, ALURes);

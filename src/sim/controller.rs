@@ -1,7 +1,7 @@
 use super::common::{ALUOperation, ALUSrc, RegDest, RegSrc, Register};
 use super::instruction::{FuncCode, Instruction, OpCode};
 use super::pipe_reg::{PipeField, PipeFieldName};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::iter::Iterator;
 
 macro_rules! set_signal_value {
@@ -41,7 +41,7 @@ impl Controller {
                 TakeJump,
                 MemSigned,
                 Reg1Src,
-                Reg2Src
+                Reg2Src,
             ] {
                 signal.insert(v, PipeField::XXX);
             }
