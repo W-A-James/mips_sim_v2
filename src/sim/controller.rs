@@ -23,13 +23,13 @@ impl Controller {
         {
             use PipeFieldName::*;
             for v in vec![
-                RegDest,
                 AluSrc1,
                 AluSrc2,
                 AluOp,
                 AluToReg,
                 MuldivReqValid,
                 WriteReg,
+                RegDest,
                 InDelaySlot,
                 ReadMem,
                 WriteMem,
