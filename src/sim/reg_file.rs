@@ -2,16 +2,32 @@ use super::common::Register;
 use super::traits::{ClockedMap, Value};
 use std::collections::{HashMap, HashSet};
 
+#[cfg(not(test))]
 #[derive(Hash, Eq, PartialEq, Debug, Clone)]
 struct RegVal {
     reg: Register,
     value: u32,
 }
 
-#[derive(Debug)]
+#[cfg(test)]
+#[derive(Hash, Eq, PartialEq, Debug, Clone)]
+pub struct RegVal {
+    reg: Register,
+    value: u32,
+}
+
+#[cfg(not(test))]
+#[derive(Debug, Clone)]
 pub struct RegFile {
     current_map: HashMap<Register, u32>,
     write_buffer: HashSet<RegVal>,
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone)]
+pub struct RegFile {
+    current_map: HashMap<Register, u32>,
+    pub write_buffer: HashSet<RegVal>,
 }
 
 impl RegFile {
@@ -53,7 +69,7 @@ impl ClockedMap<Register, u32> for RegFile {
     }
 
     fn load(&mut self, field: Register, value: u32) {
-        self.write_buffer.insert(RegVal{reg:field, value});
+        self.write_buffer.insert(RegVal { reg: field, value });
     }
 }
 

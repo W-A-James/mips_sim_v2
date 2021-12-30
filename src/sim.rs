@@ -34,8 +34,24 @@ pub struct Sim {
     memory: mem::Memory,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct SimState;
+#[derive(Debug, Clone)]
+pub struct SimState {
+    pub stalling_unit: stalling::StallingUnit,
+    pub reg_file: reg_file::RegFile,
+    pub if_id_reg: pipe_reg::PipeRegister,
+    pub id_ex_reg: pipe_reg::PipeRegister,
+    pub ex_mem_reg: pipe_reg::PipeRegister,
+    pub mem_wb_reg: pipe_reg::PipeRegister,
+    pub pc: pipe_reg::PipeRegister,
+    pub halt: pipe_reg::PipeRegister,
+
+    pub status_reg: pipe_reg::PipeRegister,
+    pub cause_reg: pipe_reg::PipeRegister,
+    pub epc_reg: pipe_reg::PipeRegister,
+    pub bad_v_addr: pipe_reg::PipeRegister,
+    pub controller: controller::Controller,
+    pub memory: mem::Memory,
+}
 
 // -------- Public API ---------
 impl Sim {
@@ -44,7 +60,7 @@ impl Sim {
         let id_ex_reg: pipe_reg::PipeRegister;
         let ex_mem_reg: pipe_reg::PipeRegister;
         let mem_wb_reg: pipe_reg::PipeRegister;
-        let pc: pipe_reg::PipeRegister;
+        let mut pc: pipe_reg::PipeRegister;
         let status_reg: pipe_reg::PipeRegister;
         let epc_reg: pipe_reg::PipeRegister;
         let bad_v_addr: pipe_reg::PipeRegister;
@@ -52,7 +68,7 @@ impl Sim {
         let reg_file = reg_file::RegFile::new();
         let controller = controller::Controller::new();
         let memory = mem::Memory::new();
-        let stalling_unit = stalling::StallingUnit::new();
+        let mut stalling_unit = stalling::StallingUnit::new();
         let halt: pipe_reg::PipeRegister;
 
         {
@@ -143,6 +159,7 @@ impl Sim {
                     PipeFieldName::InstructionPc,
                 ],
             );
+
             pc = PipeRegister::new("PC", vec![PipeFieldName::PC]);
             status_reg = PipeRegister::new("STATUS", vec![PipeFieldName::Status]);
             epc_reg = PipeRegister::new("EPC", vec![PipeFieldName::EPC]);
@@ -208,8 +225,24 @@ impl Sim {
         self.memory.clock();
     }
 
-    pub fn get_state() -> SimState {
-        SimState {}
+    pub fn get_state(&self) -> SimState {
+        SimState {
+            stalling_unit: self.stalling_unit.clone(),
+            reg_file: self.reg_file.clone(),
+            if_id_reg: self.if_id_reg.clone(),
+            id_ex_reg: self.id_ex_reg.clone(),
+            ex_mem_reg: self.ex_mem_reg.clone(),
+            mem_wb_reg: self.mem_wb_reg.clone(),
+            pc: self.pc.clone(),
+            halt: self.pc.clone(),
+
+            status_reg: self.status_reg.clone(),
+            cause_reg: self.cause_reg.clone(),
+            epc_reg: self.epc_reg.clone(),
+            bad_v_addr: self.bad_v_addr.clone(),
+            controller: self.controller.clone(),
+            memory: self.memory.clone(),
+        }
     }
 }
 
@@ -815,6 +848,11 @@ impl Sim {
         self.reg_file.load(Register::SP, STACK_POINTER_INITIAL);
         self.reg_file.load(Register::FP, STACK_POINTER_INITIAL);
         self.pc.load(PipeFieldName::PC, PC(TEXT_START));
+        self.halt.load(PipeFieldName::Halt, PipeField::Halt(false));
+        self.reg_file.clock();
+        self.pc.clock();
+
+        self.halt.clock();
     }
 }
 

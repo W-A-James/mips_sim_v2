@@ -9,7 +9,7 @@ impl std::fmt::Display for InvalidMemoryAddressRequest {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Memory {
     map: HashMap<u32, u32>,
     write_buffer: Vec<(u32, u32)>,

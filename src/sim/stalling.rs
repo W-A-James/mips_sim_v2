@@ -3,13 +3,13 @@ use super::pipe_reg::{PipeField, PipeFieldName, PipeRegister};
 use super::traits::ClockedMap;
 use std::collections::{HashMap, HashSet};
 
-#[derive(Hash, Eq, PartialEq, Debug)]
+#[derive(Hash, Eq, PartialEq, Debug, Clone)]
 struct PipeVal {
     pub name: PipeFieldName,
     pub value: PipeField,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StallingUnit {
     write_in_flight: HashMap<Register, bool>,
     signal: HashMap<PipeFieldName, PipeField>,

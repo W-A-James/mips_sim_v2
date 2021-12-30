@@ -1,5 +1,6 @@
 use super::common::{ALUOperation, ALUSrc, BranchType, RegDest, RegSrc};
 use super::traits::{ClockedMap, Field, Value};
+use paste::paste;
 use std::collections::{HashMap, HashSet};
 
 macro_rules! insert_pipe_value {
@@ -8,151 +9,101 @@ macro_rules! insert_pipe_value {
     }};
 }
 
-// TODO: Get this macro working so we only need to explicity declare PipeField
-// and have PipeFieldName generated
-macro_rules! gen_names {
-    (@remove_type $($enum_val:ident)*) => {{}};
+// This macro takes in the specification for the PipeField enum and generates
+// that enum as well as the corresponding PipeFieldName macro
+macro_rules! gen_field_and_name{
+    ( $enum_name:ident {
+        $(
+            $value:ident $(: $type:tt)?
+        ),*
+    } ) => {
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        pub enum $enum_name {
+            $(
+                $value$(($type))?
+            ),*
+        }
 
-    ($vis: vis enum $enum_name: ident $enum_vals:tt) => {{
-        $vis enum $enum_name $enum_vals
-
-        $vis enum $enum_name Name
-    }};
+        paste! {
+            #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
+            pub enum [< $enum_name Name >] {
+                $( $value ),*
+            }
+        }
+    }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum PipeField {
-    PcPlus4(u32),
-    Reg1(u32),
-    Reg2(u32),
-    Muldivhi(u32),
-    Muldivlo(u32),
-    MuldivReqValid(bool),
-    SignExtImm(u32),
-    Rt(u8),
-    Rd(u8),
-    Shamt(u8),
-    JumpTarget(u32),
-    WriteReg(bool),
-    ReadMem(bool),
-    WriteMem(bool),
-    MemWidth(u8),
-    MemSigned(bool),
-    MemData(u32),
-    AluSrc1(ALUSrc),
-    AluSrc2(ALUSrc),
-    ALURes(u32),
-    AluToReg(bool),
-    AluOp(ALUOperation),
-    RegDest(RegDest),
-    RegToWrite(u8),
-    Halt(bool),
-    IsNop(bool),
-    IsBranch(bool),
-    IsJump(bool),
-    TakeJump(bool),
-    BranchType(BranchType),
-    BranchTarget(u32),
-    BranchTaken(bool),
-    InstructionPc(u32),
-    Instruction(u32),
-    InDelaySlot(bool),
-    MuldivRes(u64),
-    PC(u32),
-    Status(u32),
-    EPC(u32),
-    BadVAddr(u32),
-    Cause(u32),
-    StallFetch(bool),
-    StallDecode(bool),
-    StallExecute(bool),
-    StallMemory(bool),
-    StallWriteback(bool),
-    BubbleDecode(bool),
-    BubbleExecute(bool),
-    BubbleMemory(bool),
-    BubbleWriteback(bool),
-    SquashFetch(bool),
-    SquashDecode(bool),
-    SquashExecute(bool),
-    SquashMemory(bool),
-    SquashWriteback(bool),
-    Reg1Src(RegSrc),
-    Reg2Src(RegSrc),
-    XXX,
-}
-
-#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
-pub enum PipeFieldName {
-    PcPlus4,
-    Reg1,
-    Reg2,
-    Muldivhi,
-    Muldivlo,
-    MuldivReqValid,
-    SignExtImm,
-    Rt,
-    Rd,
-    Shamt,
-    JumpTarget,
-    WriteReg,
-    ReadMem,
-    WriteMem,
-    MemWidth,
-    MemSigned,
-    MemData,
-    AluSrc1,
-    AluSrc2,
-    ALURes,
-    AluToReg,
-    AluOp,
-    RegDest,
-    RegToWrite,
-    Halt,
-    IsNop,
-    IsBranch,
-    IsJump,
-    TakeJump,
-    BranchType,
-    BranchTarget,
-    BranchTaken,
-    InstructionPc,
-    Instruction,
-    InDelaySlot,
-    MuldivRes,
-    PC,
-    Status,
-    EPC,
-    BadVAddr,
-    Cause,
-    StallFetch,
-    StallDecode,
-    StallExecute,
-    StallMemory,
-    StallWriteback,
-    BubbleDecode,
-    BubbleExecute,
-    BubbleMemory,
-    BubbleWriteback,
-    SquashFetch,
-    SquashDecode,
-    SquashExecute,
-    SquashMemory,
-    SquashWriteback,
-    Reg1Src,
-    Reg2Src,
-}
+gen_field_and_name!(PipeField {
+    PcPlus4: u32,
+    Reg1: u32,
+    Reg2: u32,
+    Muldivhi: u32,
+    Muldivlo: u32,
+    MuldivReqValid: bool,
+    SignExtImm: u32,
+    Rt: u8,
+    Rd: u8,
+    Shamt: u8,
+    JumpTarget: u32,
+    WriteReg: bool,
+    ReadMem: bool,
+    WriteMem: bool,
+    MemWidth: u8,
+    MemSigned: bool,
+    MemData: u32,
+    AluSrc1: ALUSrc,
+    AluSrc2: ALUSrc,
+    ALURes: u32,
+    AluToReg: bool,
+    AluOp: ALUOperation,
+    RegDest: RegDest,
+    RegToWrite: u8,
+    Halt: bool,
+    IsNop: bool,
+    IsBranch: bool,
+    IsJump: bool,
+    TakeJump: bool,
+    BranchType: BranchType,
+    BranchTarget: u32,
+    BranchTaken: bool,
+    InstructionPc: u32,
+    Instruction: u32,
+    InDelaySlot: bool,
+    MuldivRes: u64,
+    PC: u32,
+    Status: u32,
+    EPC: u32,
+    BadVAddr: u32,
+    Cause: u32,
+    StallFetch: bool,
+    StallDecode: bool,
+    StallExecute: bool,
+    StallMemory: bool,
+    StallWriteback: bool,
+    BubbleDecode: bool,
+    BubbleExecute: bool,
+    BubbleMemory: bool,
+    BubbleWriteback: bool,
+    SquashFetch: bool,
+    SquashDecode: bool,
+    SquashExecute: bool,
+    SquashMemory: bool,
+    SquashWriteback: bool,
+    Reg1Src: RegSrc,
+    Reg2Src: RegSrc,
+    XXX
+});
 
 impl Value for PipeField {}
 impl Field for PipeFieldName {}
 
-#[derive(Hash, Eq, PartialEq, Debug)]
+#[derive(Hash, Eq, PartialEq, Debug, Clone)]
 struct PipeVal {
     pub name: PipeFieldName,
     pub value: PipeField,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PipeRegister {
     name: String,
     current_map: HashMap<PipeFieldName, PipeField>,

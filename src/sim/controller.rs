@@ -12,7 +12,7 @@ macro_rules! set_signal_value {
     }};
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Controller {
     signal: HashMap<PipeFieldName, PipeField>,
 }

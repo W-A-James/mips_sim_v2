@@ -150,6 +150,7 @@ pub fn divide(a: u32, b: u32, signed: bool) -> u64 {
 
     (div as u64) | ((rem as u64) << 32)
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -207,21 +208,9 @@ mod tests {
     }
 
     #[test]
-    pub fn test_nor() {}
-
-    #[test]
-    pub fn test_and() {}
-
-    #[test]
-    pub fn test_or() {}
-
-    #[test]
     pub fn test_slt() {
         assert_eq!(calculate(10, 20, ALUOperation::SLT).unwrap(), 1);
-        assert_eq!(
-            calculate(-10i32 as u32, 20, ALUOperation::SLT).unwrap(),
-            1
-        );
+        assert_eq!(calculate(-10i32 as u32, 20, ALUOperation::SLT).unwrap(), 1);
         assert_eq!(
             calculate(-10i32 as u32, -20i32 as u32, ALUOperation::SLT).unwrap(),
             0
@@ -232,10 +221,7 @@ mod tests {
     #[test]
     pub fn test_stlu() {
         assert_eq!(calculate(10, 20, ALUOperation::SLTU).unwrap(), 1);
-        assert_eq!(
-            calculate(-10i32 as u32, 20, ALUOperation::SLTU).unwrap(),
-            0
-        );
+        assert_eq!(calculate(-10i32 as u32, 20, ALUOperation::SLTU).unwrap(), 0);
         assert_eq!(
             calculate(-10i32 as u32, -20i32 as u32, ALUOperation::SLTU).unwrap(),
             0
@@ -264,7 +250,12 @@ mod tests {
     }
 
     #[test]
-    pub fn test_sll() {}
+    pub fn test_sll() {
+        assert_eq!(
+            calculate(0x0fff_ffff, 4, ALUOperation::SLL).unwrap(),
+            0xffff_fff0
+        );
+    }
 
     #[test]
     pub fn test_sra() {}
@@ -274,4 +265,13 @@ mod tests {
 
     #[test]
     pub fn test_clz() {}
+
+    #[test]
+    pub fn test_nor() {}
+
+    #[test]
+    pub fn test_and() {}
+
+    #[test]
+    pub fn test_or() {}
 }
