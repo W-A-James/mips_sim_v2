@@ -1,106 +1,153 @@
-use super::common::{ALUOperation, ALUSrc, BranchType, RegDest, RegSrc};
+use super::common;
+use super::common::{ALUOperation, ALUSrc, RegSrc};
 use super::traits::{ClockedMap, Field, Value};
-use paste::paste;
+use lazy_static::lazy_static;
 use std::collections::{HashMap, HashSet};
 
-macro_rules! insert_pipe_value {
-    ($item: expr, $field_name: ident, $value: expr) => {{
-        $item.load(PipeFieldName::$field_name, PipeField::$field_name($value));
-    }};
+#[derive(Hash, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PipeFieldName {
+    PcPlus4,
+    Reg1,
+    Reg2,
+    Muldivhi,
+    Muldivlo,
+    MuldivReqValid,
+    SignExtImm,
+    Rt,
+    Rd,
+    Shamt,
+    JumpTarget,
+    WriteReg,
+    ReadMem,
+    WriteMem,
+    MemWidth,
+    MemSigned,
+    MemData,
+    AluSrc1,
+    AluSrc2,
+    ALURes,
+    AluToReg,
+    AluOp,
+    RegDest,
+    RegToWrite,
+    Halt,
+    IsNop,
+    IsBranch,
+    IsJump,
+    TakeJump,
+    BranchType,
+    BranchTarget,
+    BranchTaken,
+    InstructionPc,
+    Instruction,
+    InDelaySlot,
+    MuldivRes,
+    PC,
+    Status,
+    EPC,
+    BadVAddr,
+    Cause,
+    StallFetch,
+    StallDecode,
+    StallExecute,
+    StallMemory,
+    StallWriteback,
+    BubbleDecode,
+    BubbleExecute,
+    BubbleMemory,
+    BubbleWriteback,
+    SquashFetch,
+    SquashDecode,
+    SquashExecute,
+    SquashMemory,
+    SquashWriteback,
+    Reg1Src,
+    Reg2Src,
 }
 
-// This macro takes in the specification for the PipeField enum and generates
-// that enum as well as the corresponding PipeFieldName macro
-macro_rules! gen_field_and_name{
-    ( $enum_name:ident {
-        $(
-            $value:ident $(: $type:tt)?
-        ),*
-    } ) => {
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-        pub enum $enum_name {
-            $(
-                $value$(($type))?
-            ),*
-        }
-
-        paste! {
-            #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
-            pub enum [< $enum_name Name >] {
-                $( $value ),*
-            }
-        }
-    }
+#[derive(Hash, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PipeField {
+    UInt(u32),
+    U64(u64),
+    Byte(u8),
+    Bool(bool),
+    RSrc(common::RegSrc),
+    Op(common::ALUOperation),
+    Dest(common::RegDest),
+    ALU(common::ALUSrc),
+    Branch(common::BranchType),
 }
 
-gen_field_and_name!(PipeField {
-    PcPlus4: u32,
-    Reg1: u32,
-    Reg2: u32,
-    Muldivhi: u32,
-    Muldivlo: u32,
-    MuldivReqValid: bool,
-    SignExtImm: u32,
-    Rt: u8,
-    Rd: u8,
-    Shamt: u8,
-    JumpTarget: u32,
-    WriteReg: bool,
-    ReadMem: bool,
-    WriteMem: bool,
-    MemWidth: u8,
-    MemSigned: bool,
-    MemData: u32,
-    AluSrc1: ALUSrc,
-    AluSrc2: ALUSrc,
-    ALURes: u32,
-    AluToReg: bool,
-    AluOp: ALUOperation,
-    RegDest: RegDest,
-    RegToWrite: u8,
-    Halt: bool,
-    IsNop: bool,
-    IsBranch: bool,
-    IsJump: bool,
-    TakeJump: bool,
-    BranchType: BranchType,
-    BranchTarget: u32,
-    BranchTaken: bool,
-    InstructionPc: u32,
-    Instruction: u32,
-    InDelaySlot: bool,
-    MuldivRes: u64,
-    PC: u32,
-    Status: u32,
-    EPC: u32,
-    BadVAddr: u32,
-    Cause: u32,
-    StallFetch: bool,
-    StallDecode: bool,
-    StallExecute: bool,
-    StallMemory: bool,
-    StallWriteback: bool,
-    BubbleDecode: bool,
-    BubbleExecute: bool,
-    BubbleMemory: bool,
-    BubbleWriteback: bool,
-    SquashFetch: bool,
-    SquashDecode: bool,
-    SquashExecute: bool,
-    SquashMemory: bool,
-    SquashWriteback: bool,
-    Reg1Src: RegSrc,
-    Reg2Src: RegSrc,
-    XXX
-});
+lazy_static! {
+    pub static ref DEFAULT_VALUES: HashMap<PipeFieldName, PipeField> = {
+        let mut m = HashMap::new();
+        use PipeFieldName::*;
+        m.insert(PcPlus4, PipeField::UInt(0));
+        m.insert(Reg1, PipeField::UInt(0));
+        m.insert(Reg2, PipeField::UInt(0));
+        m.insert(Muldivhi, PipeField::UInt(0));
+        m.insert(Muldivlo, PipeField::UInt(0));
+        m.insert(MuldivReqValid, PipeField::Bool(false));
+        m.insert(SignExtImm, PipeField::UInt(0));
+        m.insert(Rt, PipeField::Byte(0));
+        m.insert(Rd, PipeField::Byte(0));
+        m.insert(Shamt, PipeField::Byte(0));
+        m.insert(JumpTarget, PipeField::UInt(0));
+        m.insert(WriteReg, PipeField::Bool(false));
+        m.insert(ReadMem, PipeField::Bool(false));
+        m.insert(WriteMem, PipeField::Bool(false));
+        m.insert(MemWidth, PipeField::Byte(1));
+        m.insert(MemSigned, PipeField::Bool(true));
+        m.insert(MemData, PipeField::UInt(0));
+        m.insert(AluSrc1, PipeField::ALU(ALUSrc::Zero));
+        m.insert(AluSrc2, PipeField::ALU(ALUSrc::Zero));
+        m.insert(ALURes, PipeField::UInt(0));
+        m.insert(AluToReg, PipeField::Bool(false));
+        m.insert(AluOp, PipeField::Op(ALUOperation::ADD));
+        m.insert(RegDest, PipeField::Dest(common::RegDest::XXX));
+        m.insert(RegToWrite, PipeField::Byte(0));
+        m.insert(Halt, PipeField::Bool(false));
+        m.insert(IsNop, PipeField::Bool(true));
+        m.insert(IsBranch, PipeField::Bool(false));
+        m.insert(IsJump, PipeField::Bool(false));
+        m.insert(TakeJump, PipeField::Bool(false));
+        m.insert(BranchType, PipeField::Branch(common::BranchType::Beq));
+        m.insert(BranchTarget, PipeField::UInt(0));
+        m.insert(BranchTaken, PipeField::Bool(false));
+        m.insert(InstructionPc, PipeField::UInt(0));
+        m.insert(Instruction, PipeField::UInt(0));
+        m.insert(InDelaySlot, PipeField::Bool(false));
+        m.insert(MuldivRes, PipeField::U64(0));
+        m.insert(PC, PipeField::UInt(0));
+        m.insert(Status, PipeField::UInt(0));
+        m.insert(EPC, PipeField::UInt(0));
+        m.insert(BadVAddr, PipeField::UInt(0));
+        m.insert(Cause, PipeField::UInt(0));
+        m.insert(StallFetch, PipeField::Bool(false));
+        m.insert(StallDecode, PipeField::Bool(false));
+        m.insert(StallExecute, PipeField::Bool(false));
+        m.insert(StallMemory, PipeField::Bool(false));
+        m.insert(StallWriteback, PipeField::Bool(false));
+        m.insert(BubbleDecode, PipeField::Bool(false));
+        m.insert(BubbleExecute, PipeField::Bool(false));
+        m.insert(BubbleMemory, PipeField::Bool(false));
+        m.insert(BubbleWriteback, PipeField::Bool(false));
+        m.insert(SquashFetch, PipeField::Bool(false));
+        m.insert(SquashDecode, PipeField::Bool(false));
+        m.insert(SquashExecute, PipeField::Bool(false));
+        m.insert(SquashMemory, PipeField::Bool(false));
+        m.insert(SquashWriteback, PipeField::Bool(false));
+        m.insert(Reg1Src, PipeField::RSrc(RegSrc::Rs));
+        m.insert(Reg2Src, PipeField::RSrc(RegSrc::Rt));
 
-impl Value for PipeField {}
-impl Field for PipeFieldName {}
+        m
+    };
+}
 
-#[derive(Hash, Eq, PartialEq, Debug, Clone)]
-struct PipeVal {
-    pub name: PipeFieldName,
-    pub value: PipeField,
+#[derive(Hash, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PipeVal {
+    key: PipeFieldName,
+    value: PipeField,
 }
 
 #[derive(Debug, Clone)]
@@ -115,7 +162,7 @@ impl PipeRegister {
         let mut current_map: HashMap<PipeFieldName, PipeField> =
             HashMap::with_capacity(fields.len());
         for f in fields {
-            current_map.insert(f, PipeField::XXX);
+            current_map.insert(f, *DEFAULT_VALUES.get(&f).unwrap());
         }
         let write_buffer = HashSet::new();
         PipeRegister {
@@ -128,12 +175,18 @@ impl PipeRegister {
     pub fn get_name(&self) -> String {
         self.name.clone()
     }
+
+    pub fn pass_through(&self, other: &mut PipeRegister, field: PipeFieldName) {
+        other.load(field, self.read(field));
+    }
 }
 
+impl Field for PipeFieldName {}
+impl Value for PipeField {}
 impl ClockedMap<PipeFieldName, PipeField> for PipeRegister {
     fn load(&mut self, field: PipeFieldName, value: PipeField) {
         if self.current_map.contains_key(&field) {
-            self.write_buffer.insert(PipeVal { name: field, value });
+            self.write_buffer.insert(PipeVal { key: field, value });
         } else {
             // NOTE:
             // Silently ignore here?
@@ -147,7 +200,7 @@ impl ClockedMap<PipeFieldName, PipeField> for PipeRegister {
     fn clock(&mut self) {
         for pipe_val in self.write_buffer.drain() {
             self.current_map
-                .insert(pipe_val.name, pipe_val.value)
+                .insert(pipe_val.key, pipe_val.value)
                 .unwrap();
         }
     }

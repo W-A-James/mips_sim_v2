@@ -1,5 +1,5 @@
 use super::common::Register;
-use super::pipe_reg::{PipeField, PipeFieldName, PipeRegister};
+use super::pipe_reg::{PipeField, PipeFieldName, DEFAULT_VALUES};
 use super::traits::ClockedMap;
 use std::collections::{HashMap, HashSet};
 
@@ -38,7 +38,7 @@ impl StallingUnit {
                 SquashMemory,
                 SquashWriteback,
             ] {
-                signal.insert(v, PipeField::XXX);
+                signal.insert(v, *DEFAULT_VALUES.get(&v).unwrap());
             }
         }
 
