@@ -355,18 +355,29 @@ impl Sim {
 
     fn load_pc(&mut self, is_branch: bool, is_jump: bool, branch_taken: bool) {
         if is_branch && branch_taken {
+            eprintln!(
+                "Loading pc with branch target: {:#?}",
+                self.id_ex_reg.read(PipeFieldName::BranchTarget)
+            );
             self.pc.load(
                 PipeFieldName::PC,
                 self.id_ex_reg.read(PipeFieldName::BranchTarget),
             );
         } else if is_jump {
+            eprintln!(
+                "Loading pc with jump target: {:#?}",
+                self.id_ex_reg.read(PipeFieldName::JumpTarget)
+            );
             self.pc.load(
                 PipeFieldName::PC,
                 self.id_ex_reg.read(PipeFieldName::JumpTarget),
             );
         } else {
             match self.pc.read(PipeFieldName::PC) {
-                PipeField::UInt(pc) => self.pc.load(PipeFieldName::PC, PipeField::UInt(pc + 4)),
+                PipeField::UInt(pc) => {
+                    self.pc.load(PipeFieldName::PC, PipeField::UInt(pc + 4));
+                    eprintln!("Loading pc with pc + 4: {:#?}", pc + 4);
+                }
                 _ => panic!("Invalid value in pc"),
             }
         }
@@ -622,12 +633,6 @@ impl Sim {
                     // PcPlus4
                     self.if_id_reg
                         .pass_through(&mut self.id_ex_reg, PipeFieldName::PcPlus4);
-                    // Muldivhi
-                    self.if_id_reg
-                        .pass_through(&mut self.id_ex_reg, PipeFieldName::Muldivhi);
-                    // Muldivlo
-                    self.if_id_reg
-                        .pass_through(&mut self.id_ex_reg, PipeFieldName::Muldivlo);
                     // SignExtImm
                     self.id_ex_reg.load(
                         PipeFieldName::SignExtImm,
@@ -1069,16 +1074,1480 @@ impl Sim {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use instruction::Instruction;
+    use pipe_reg::PipeRegister;
+
+    fn assert_pipe_fields(
+        pipe_register: &PipeRegister,
+        keys: &Vec<PipeFieldName>,
+        values: &Vec<PipeField>,
+    ) {
+        assert!(keys.len() == values.len());
+
+        for (k, v) in keys.iter().zip(values.iter()) {
+            assert_eq!(
+                pipe_register.read(*k),
+                *v,
+                "Failed equality check for key: {:#?}",
+                k
+            );
+        }
+    }
+
+    fn test_instr(
+        instr: Instruction,
+        register_name: &str,
+        num_cycles: u32,
+        fields: &Vec<PipeFieldName>,
+        values: &Vec<PipeField>,
+    ) {
+        let mut instrs: Vec<u32> = Vec::with_capacity(5);
+        let mut sim = Sim::new();
+        let data: Vec<u32> = Vec::new();
+        instrs.push(instr.get_instr_word());
+
+        for _ in 1..instrs.len() {
+            instrs.push(0);
+        }
+
+        sim.load_binary(&instrs, &data);
+
+        assert_eq!(fields.len(), values.len());
+
+        sim.step(num_cycles);
+
+        let register = match register_name {
+            "IF/ID" => sim.get_state().if_id_reg.clone(),
+            "ID/EX" => sim.get_state().id_ex_reg.clone(),
+            "EX/MEM" => sim.get_state().ex_mem_reg.clone(),
+            "MEM/WB" => sim.get_state().mem_wb_reg.clone(),
+            "PC" => sim.get_state().pc.clone(),
+            "HALT" => sim.get_state().halt.clone(),
+            "EPC" => sim.get_state().epc_reg.clone(),
+            "CAUSE" => sim.get_state().cause_reg.clone(),
+            "BAD_V_ADDR" => sim.get_state().bad_v_addr.clone(),
+            _ => panic!(),
+        };
+
+        assert_pipe_fields(&register, fields, values);
+    }
+
+    #[test]
+    pub fn test_r_type_instrs() {}
+
+    #[test]
+    pub fn test_i_type_instrs() {}
+
+    #[test]
+    pub fn test_j_type_instrs() {}
+
+    #[test]
+    pub fn test_raw_dep() {}
+
+    #[test]
+    pub fn test_branches() {}
 
     #[test]
     pub fn test_fetch_stage() {
-        let mut sim = Sim::new();
-        // Set values
+        // Add instruction
+        let instr = instruction::Instruction::from_parts(
+            instruction::OpCode::RType,
+            Some(instruction::FuncCode::Add),
+            Some(Register::T0),
+            Some(Register::T1),
+            Some(Register::T2),
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+
+        test_instr(
+            instr,
+            "IF/ID",
+            1,
+            &vec![PipeFieldName::PcPlus4, PipeFieldName::Instruction],
+            &vec![
+                PipeField::UInt(TEXT_START + 4),
+                PipeField::UInt(instr.clone().get_instr_word()),
+            ],
+        );
+
+        use PipeFieldName::*;
+        test_instr(
+            instr,
+            "ID/EX",
+            2,
+            &vec![
+                Reg1,
+                Reg2,
+                Muldivhi,
+                Muldivlo,
+                MuldivReqValid,
+                SignExtImm,
+                Rt,
+                Rd,
+                WriteReg,
+                AluOp,
+                AluToReg,
+                RegDest,
+            ],
+            &vec![
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::Bool(false),
+                PipeField::UInt(0),
+                PipeField::Byte(8),
+                PipeField::Byte(10),
+                PipeField::Bool(true),
+                PipeField::Op(ALUOperation::ADD),
+                PipeField::Bool(true),
+                PipeField::Dest(common::RegDest::Rd),
+            ],
+        );
     }
 
     #[test]
     pub fn test_decode_stage() {
-        let mut sim = Sim::new();
+        use PipeFieldName::*;
+        // ADD
+        let mut instr = instruction::Instruction::from_parts(
+            instruction::OpCode::RType,
+            Some(instruction::FuncCode::Add),
+            Some(Register::T0),
+            Some(Register::T1),
+            Some(Register::T2),
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+        test_instr(
+            instr,
+            "ID/EX",
+            2,
+            &vec![
+                Reg1,
+                Reg2,
+                Muldivhi,
+                Muldivlo,
+                MuldivReqValid,
+                SignExtImm,
+                Rt,
+                Rd,
+                WriteReg,
+                AluOp,
+                AluToReg,
+                RegDest,
+            ],
+            &vec![
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::Bool(false),
+                PipeField::UInt(0),
+                PipeField::Byte(8),
+                PipeField::Byte(10),
+                PipeField::Bool(true),
+                PipeField::Op(ALUOperation::ADD),
+                PipeField::Bool(true),
+                PipeField::Dest(common::RegDest::Rd),
+            ],
+        );
+        // ADDU
+        instr = instruction::Instruction::from_parts(
+            instruction::OpCode::RType,
+            Some(instruction::FuncCode::Addu),
+            Some(Register::T0),
+            Some(Register::T1),
+            Some(Register::T2),
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+        test_instr(
+            instr,
+            "ID/EX",
+            2,
+            &vec![
+                Reg1,
+                Reg2,
+                Muldivhi,
+                Muldivlo,
+                MuldivReqValid,
+                SignExtImm,
+                Rt,
+                Rd,
+                WriteReg,
+                AluOp,
+                AluToReg,
+                RegDest,
+            ],
+            &vec![
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::Bool(false),
+                PipeField::UInt(0),
+                PipeField::Byte(8),
+                PipeField::Byte(10),
+                PipeField::Bool(true),
+                PipeField::Op(ALUOperation::ADDU),
+                PipeField::Bool(true),
+                PipeField::Dest(common::RegDest::Rd),
+            ],
+        );
+        // AND
+        instr = instruction::Instruction::from_parts(
+            instruction::OpCode::RType,
+            Some(instruction::FuncCode::And),
+            Some(Register::T0),
+            Some(Register::T1),
+            Some(Register::T2),
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+        test_instr(
+            instr,
+            "ID/EX",
+            2,
+            &vec![
+                Reg1,
+                Reg2,
+                Muldivhi,
+                Muldivlo,
+                MuldivReqValid,
+                SignExtImm,
+                Rt,
+                Rd,
+                WriteReg,
+                AluOp,
+                AluToReg,
+                RegDest,
+            ],
+            &vec![
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::Bool(false),
+                PipeField::UInt(0),
+                PipeField::Byte(8),
+                PipeField::Byte(10),
+                PipeField::Bool(true),
+                PipeField::Op(ALUOperation::AND),
+                PipeField::Bool(true),
+                PipeField::Dest(common::RegDest::Rd),
+            ],
+        );
+        // CLO
+        instr = instruction::Instruction::from_parts(
+            instruction::OpCode::Mul,
+            Some(instruction::FuncCode::Add),
+            None,
+            Some(Register::T0),
+            Some(Register::T1),
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+
+        test_instr(
+            instr,
+            "ID/EX",
+            2,
+            &vec![
+                Reg1,
+                Reg2,
+                Muldivhi,
+                Muldivlo,
+                MuldivReqValid,
+                SignExtImm,
+                Rt,
+                Rd,
+                WriteReg,
+                AluOp,
+                AluToReg,
+                RegDest,
+            ],
+            &vec![
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::Bool(false),
+                PipeField::UInt(0),
+                PipeField::Byte(common::Register::ZERO as u8),
+                PipeField::Byte(common::Register::T1 as u8),
+                PipeField::Bool(true),
+                PipeField::Op(ALUOperation::CLO),
+                PipeField::Bool(true),
+                PipeField::Dest(common::RegDest::Rd),
+            ],
+        );
+        // CLZ
+        instr = instruction::Instruction::from_parts(
+            instruction::OpCode::Mul,
+            Some(instruction::FuncCode::Addu),
+            None,
+            Some(Register::T0),
+            Some(Register::T1),
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+
+        test_instr(
+            instr,
+            "ID/EX",
+            2,
+            &vec![
+                Reg1,
+                Reg2,
+                Muldivhi,
+                Muldivlo,
+                MuldivReqValid,
+                SignExtImm,
+                Rt,
+                Rd,
+                WriteReg,
+                AluOp,
+                AluToReg,
+                RegDest,
+            ],
+            &vec![
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::Bool(false),
+                PipeField::UInt(0),
+                PipeField::Byte(common::Register::ZERO as u8),
+                PipeField::Byte(common::Register::T1 as u8),
+                PipeField::Bool(true),
+                PipeField::Op(ALUOperation::CLZ),
+                PipeField::Bool(true),
+                PipeField::Dest(common::RegDest::Rd),
+            ],
+        );
+        // DIV
+        instr = instruction::Instruction::from_parts(
+            instruction::OpCode::RType,
+            Some(instruction::FuncCode::Div),
+            Some(Register::T0),
+            Some(Register::T1),
+            None,
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+
+        test_instr(
+            instr,
+            "ID/EX",
+            2,
+            &vec![
+                Reg1,
+                Reg2,
+                Muldivhi,
+                Muldivlo,
+                MuldivReqValid,
+                SignExtImm,
+                Rt,
+                Rd,
+                WriteReg,
+                AluOp,
+                AluToReg,
+                RegDest,
+            ],
+            &vec![
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::Bool(true),
+                PipeField::UInt(0),
+                PipeField::Byte(common::Register::T0 as u8),
+                PipeField::Byte(common::Register::ZERO as u8),
+                PipeField::Bool(false),
+                PipeField::Op(ALUOperation::DIV),
+                PipeField::Bool(true),
+                PipeField::Dest(common::RegDest::XXX),
+            ],
+        );
+        // DIVU
+        instr = instruction::Instruction::from_parts(
+            instruction::OpCode::RType,
+            Some(instruction::FuncCode::Divu),
+            Some(Register::T0),
+            Some(Register::T1),
+            None,
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+
+        test_instr(
+            instr,
+            "ID/EX",
+            2,
+            &vec![
+                Reg1,
+                Reg2,
+                Muldivhi,
+                Muldivlo,
+                MuldivReqValid,
+                SignExtImm,
+                Rt,
+                Rd,
+                WriteReg,
+                AluOp,
+                AluToReg,
+                RegDest,
+            ],
+            &vec![
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::Bool(true),
+                PipeField::UInt(0),
+                PipeField::Byte(common::Register::T0 as u8),
+                PipeField::Byte(common::Register::ZERO as u8),
+                PipeField::Bool(false),
+                PipeField::Op(ALUOperation::DIVU),
+                PipeField::Bool(true),
+                PipeField::Dest(common::RegDest::XXX),
+            ],
+        );
+        // MULT
+        instr = instruction::Instruction::from_parts(
+            instruction::OpCode::RType,
+            Some(instruction::FuncCode::Mult),
+            Some(Register::T0),
+            Some(Register::T1),
+            None,
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+
+        test_instr(
+            instr,
+            "ID/EX",
+            2,
+            &vec![
+                Reg1,
+                Reg2,
+                Muldivhi,
+                Muldivlo,
+                MuldivReqValid,
+                SignExtImm,
+                Rt,
+                Rd,
+                WriteReg,
+                AluOp,
+                AluToReg,
+                RegDest,
+            ],
+            &vec![
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::Bool(true),
+                PipeField::UInt(0),
+                PipeField::Byte(common::Register::T0 as u8),
+                PipeField::Byte(common::Register::ZERO as u8),
+                PipeField::Bool(false),
+                PipeField::Op(ALUOperation::MULT),
+                PipeField::Bool(true),
+                PipeField::Dest(common::RegDest::XXX),
+            ],
+        );
+        // MULTU
+        instr = instruction::Instruction::from_parts(
+            instruction::OpCode::RType,
+            Some(instruction::FuncCode::Multu),
+            Some(Register::T0),
+            Some(Register::T1),
+            None,
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+
+        test_instr(
+            instr,
+            "ID/EX",
+            2,
+            &vec![
+                Reg1,
+                Reg2,
+                Muldivhi,
+                Muldivlo,
+                MuldivReqValid,
+                SignExtImm,
+                Rt,
+                Rd,
+                WriteReg,
+                AluOp,
+                AluToReg,
+                RegDest,
+            ],
+            &vec![
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::Bool(true),
+                PipeField::UInt(0),
+                PipeField::Byte(common::Register::T0 as u8),
+                PipeField::Byte(common::Register::ZERO as u8),
+                PipeField::Bool(false),
+                PipeField::Op(ALUOperation::MULTU),
+                PipeField::Bool(true),
+                PipeField::Dest(common::RegDest::XXX),
+            ],
+        );
+        // MUL
+        instr = instruction::Instruction::from_parts(
+            instruction::OpCode::Mul,
+            Some(instruction::FuncCode::Srl),
+            Some(Register::T0),
+            Some(Register::T1),
+            Some(Register::T2),
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+
+        test_instr(
+            instr,
+            "ID/EX",
+            2,
+            &vec![
+                Reg1,
+                Reg2,
+                Muldivhi,
+                Muldivlo,
+                MuldivReqValid,
+                SignExtImm,
+                Rt,
+                Rd,
+                WriteReg,
+                AluOp,
+                AluToReg,
+                RegDest,
+            ],
+            &vec![
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::Bool(false),
+                PipeField::UInt(0),
+                PipeField::Byte(common::Register::T0 as u8),
+                PipeField::Byte(common::Register::T2 as u8),
+                PipeField::Bool(true),
+                PipeField::Op(ALUOperation::MUL),
+                PipeField::Bool(true),
+                PipeField::Dest(common::RegDest::Rd),
+            ],
+        );
+        // NOR
+        instr = instruction::Instruction::from_parts(
+            instruction::OpCode::RType,
+            Some(instruction::FuncCode::Nor),
+            Some(Register::T0),
+            Some(Register::T1),
+            Some(Register::T2),
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+        test_instr(
+            instr,
+            "ID/EX",
+            2,
+            &vec![
+                Reg1,
+                Reg2,
+                Muldivhi,
+                Muldivlo,
+                MuldivReqValid,
+                SignExtImm,
+                Rt,
+                Rd,
+                WriteReg,
+                AluOp,
+                AluToReg,
+                RegDest,
+            ],
+            &vec![
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::Bool(false),
+                PipeField::UInt(0),
+                PipeField::Byte(8),
+                PipeField::Byte(10),
+                PipeField::Bool(true),
+                PipeField::Op(ALUOperation::NOR),
+                PipeField::Bool(true),
+                PipeField::Dest(common::RegDest::Rd),
+            ],
+        );
+        // OR
+        instr = instruction::Instruction::from_parts(
+            instruction::OpCode::RType,
+            Some(instruction::FuncCode::Or),
+            Some(Register::T0),
+            Some(Register::T1),
+            Some(Register::T2),
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+        test_instr(
+            instr,
+            "ID/EX",
+            2,
+            &vec![
+                Reg1,
+                Reg2,
+                Muldivhi,
+                Muldivlo,
+                MuldivReqValid,
+                SignExtImm,
+                Rt,
+                Rd,
+                WriteReg,
+                AluOp,
+                AluToReg,
+                RegDest,
+            ],
+            &vec![
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::Bool(false),
+                PipeField::UInt(0),
+                PipeField::Byte(8),
+                PipeField::Byte(10),
+                PipeField::Bool(true),
+                PipeField::Op(ALUOperation::OR),
+                PipeField::Bool(true),
+                PipeField::Dest(common::RegDest::Rd),
+            ],
+        );
+        // ADDI
+        instr = instruction::Instruction::from_parts(
+            instruction::OpCode::Addi,
+            None,
+            Some(Register::T0),
+            Some(Register::T1),
+            None,
+            None,
+            Some(10),
+            None,
+        )
+        .unwrap();
+        test_instr(
+            instr,
+            "ID/EX",
+            2,
+            &vec![
+                Reg1,
+                Reg2,
+                Muldivhi,
+                Muldivlo,
+                MuldivReqValid,
+                SignExtImm,
+                Rt,
+                Rd,
+                WriteReg,
+                AluOp,
+                AluToReg,
+                RegDest,
+            ],
+            &vec![
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::Bool(false),
+                PipeField::UInt(10),
+                PipeField::Byte(8),
+                PipeField::Byte(0),
+                PipeField::Bool(true),
+                PipeField::Op(ALUOperation::ADD),
+                PipeField::Bool(true),
+                PipeField::Dest(common::RegDest::XXX),
+            ],
+        );
+        // ADDIU
+        instr = instruction::Instruction::from_parts(
+            instruction::OpCode::Addiu,
+            None,
+            Some(Register::T0),
+            Some(Register::T1),
+            None,
+            None,
+            Some(10),
+            None,
+        )
+        .unwrap();
+        test_instr(
+            instr,
+            "ID/EX",
+            2,
+            &vec![
+                Reg1,
+                Reg2,
+                Muldivhi,
+                Muldivlo,
+                MuldivReqValid,
+                SignExtImm,
+                Rt,
+                Rd,
+                WriteReg,
+                AluOp,
+                AluToReg,
+                RegDest,
+            ],
+            &vec![
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::Bool(false),
+                PipeField::UInt(10),
+                PipeField::Byte(8),
+                PipeField::Byte(0),
+                PipeField::Bool(true),
+                PipeField::Op(ALUOperation::ADDU),
+                PipeField::Bool(true),
+                PipeField::Dest(common::RegDest::XXX),
+            ],
+        );
+        // ANDI
+        instr = instruction::Instruction::from_parts(
+            instruction::OpCode::Andi,
+            None,
+            Some(Register::T0),
+            Some(Register::T1),
+            None,
+            None,
+            Some(10),
+            None,
+        )
+        .unwrap();
+        test_instr(
+            instr,
+            "ID/EX",
+            2,
+            &vec![
+                Reg1,
+                Reg2,
+                Muldivhi,
+                Muldivlo,
+                MuldivReqValid,
+                SignExtImm,
+                Rt,
+                Rd,
+                WriteReg,
+                AluOp,
+                AluToReg,
+                RegDest,
+            ],
+            &vec![
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::Bool(false),
+                PipeField::UInt(10),
+                PipeField::Byte(8),
+                PipeField::Byte(0),
+                PipeField::Bool(true),
+                PipeField::Op(ALUOperation::AND),
+                PipeField::Bool(true),
+                PipeField::Dest(common::RegDest::XXX),
+            ],
+        );
+        // ORI
+        instr = instruction::Instruction::from_parts(
+            instruction::OpCode::Ori,
+            None,
+            Some(Register::T0),
+            Some(Register::T1),
+            None,
+            None,
+            Some(10),
+            None,
+        )
+        .unwrap();
+        test_instr(
+            instr,
+            "ID/EX",
+            2,
+            &vec![
+                Reg1,
+                Reg2,
+                Muldivhi,
+                Muldivlo,
+                MuldivReqValid,
+                SignExtImm,
+                Rt,
+                Rd,
+                WriteReg,
+                AluOp,
+                AluToReg,
+                RegDest,
+            ],
+            &vec![
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::Bool(false),
+                PipeField::UInt(10),
+                PipeField::Byte(8),
+                PipeField::Byte(0),
+                PipeField::Bool(true),
+                PipeField::Op(ALUOperation::OR),
+                PipeField::Bool(true),
+                PipeField::Dest(common::RegDest::XXX),
+            ],
+        );
+        // XORI
+        instr = instruction::Instruction::from_parts(
+            instruction::OpCode::Xori,
+            None,
+            Some(Register::T0),
+            Some(Register::T1),
+            None,
+            None,
+            Some(10),
+            None,
+        )
+        .unwrap();
+        test_instr(
+            instr,
+            "ID/EX",
+            2,
+            &vec![
+                Reg1,
+                Reg2,
+                Muldivhi,
+                Muldivlo,
+                MuldivReqValid,
+                SignExtImm,
+                Rt,
+                Rd,
+                WriteReg,
+                AluOp,
+                AluToReg,
+                RegDest,
+            ],
+            &vec![
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::Bool(false),
+                PipeField::UInt(10),
+                PipeField::Byte(8),
+                PipeField::Byte(0),
+                PipeField::Bool(true),
+                PipeField::Op(ALUOperation::XOR),
+                PipeField::Bool(true),
+                PipeField::Dest(common::RegDest::XXX),
+            ],
+        );
+        // SLL
+        instr = instruction::Instruction::from_parts(
+            instruction::OpCode::RType,
+            Some(instruction::FuncCode::Sll),
+            Some(Register::T0),
+            None,
+            Some(Register::T1),
+            Some(10),
+            None,
+            None,
+        )
+        .unwrap();
+        test_instr(
+            instr,
+            "ID/EX",
+            2,
+            &vec![
+                Reg1,
+                Reg2,
+                Muldivhi,
+                Muldivlo,
+                MuldivReqValid,
+                SignExtImm,
+                Rt,
+                Rd,
+                WriteReg,
+                AluOp,
+                AluToReg,
+                RegDest,
+            ],
+            &vec![
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::Bool(false),
+                PipeField::UInt(0),
+                PipeField::Byte(common::Register::T0 as u8),
+                PipeField::Byte(common::Register::T1 as u8),
+                PipeField::Bool(true),
+                PipeField::Op(ALUOperation::SLL),
+                PipeField::Bool(true),
+                PipeField::Dest(common::RegDest::Rd),
+            ],
+        );
+        // SLLV
+        instr = instruction::Instruction::from_parts(
+            instruction::OpCode::RType,
+            Some(instruction::FuncCode::Sllv),
+            Some(Register::T0),
+            Some(Register::T1),
+            Some(Register::T2),
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+        test_instr(
+            instr,
+            "ID/EX",
+            2,
+            &vec![
+                Reg1,
+                Reg2,
+                Muldivhi,
+                Muldivlo,
+                MuldivReqValid,
+                SignExtImm,
+                Rt,
+                Rd,
+                WriteReg,
+                AluOp,
+                AluToReg,
+                RegDest,
+            ],
+            &vec![
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::Bool(false),
+                PipeField::UInt(0),
+                PipeField::Byte(common::Register::T0 as u8),
+                PipeField::Byte(common::Register::T2 as u8),
+                PipeField::Bool(true),
+                PipeField::Op(ALUOperation::SLL),
+                PipeField::Bool(true),
+                PipeField::Dest(common::RegDest::Rd),
+            ],
+        );
+        // SRA
+        instr = instruction::Instruction::from_parts(
+            instruction::OpCode::RType,
+            Some(instruction::FuncCode::Sra),
+            Some(Register::T0),
+            None,
+            Some(Register::T1),
+            Some(10),
+            None,
+            None,
+        )
+        .unwrap();
+        test_instr(
+            instr,
+            "ID/EX",
+            2,
+            &vec![
+                Reg1,
+                Reg2,
+                Muldivhi,
+                Muldivlo,
+                MuldivReqValid,
+                SignExtImm,
+                Rt,
+                Rd,
+                WriteReg,
+                AluOp,
+                AluToReg,
+                RegDest,
+            ],
+            &vec![
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::Bool(false),
+                PipeField::UInt(0),
+                PipeField::Byte(common::Register::T0 as u8),
+                PipeField::Byte(common::Register::T1 as u8),
+                PipeField::Bool(true),
+                PipeField::Op(ALUOperation::SRA),
+                PipeField::Bool(true),
+                PipeField::Dest(common::RegDest::Rd),
+            ],
+        );
+        // SRAV
+        instr = instruction::Instruction::from_parts(
+            instruction::OpCode::RType,
+            Some(instruction::FuncCode::Srav),
+            Some(Register::T0),
+            Some(Register::T1),
+            Some(Register::T2),
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+        test_instr(
+            instr,
+            "ID/EX",
+            2,
+            &vec![
+                Reg1,
+                Reg2,
+                Muldivhi,
+                Muldivlo,
+                MuldivReqValid,
+                SignExtImm,
+                Rt,
+                Rd,
+                WriteReg,
+                AluOp,
+                AluToReg,
+                RegDest,
+            ],
+            &vec![
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::Bool(false),
+                PipeField::UInt(0),
+                PipeField::Byte(common::Register::T0 as u8),
+                PipeField::Byte(common::Register::T2 as u8),
+                PipeField::Bool(true),
+                PipeField::Op(ALUOperation::SRA),
+                PipeField::Bool(true),
+                PipeField::Dest(common::RegDest::Rd),
+            ],
+        );
+        // SRL
+        instr = instruction::Instruction::from_parts(
+            instruction::OpCode::RType,
+            Some(instruction::FuncCode::Srl),
+            Some(Register::T0),
+            None,
+            Some(Register::T1),
+            Some(10),
+            None,
+            None,
+        )
+        .unwrap();
+        test_instr(
+            instr,
+            "ID/EX",
+            2,
+            &vec![
+                Reg1,
+                Reg2,
+                Muldivhi,
+                Muldivlo,
+                MuldivReqValid,
+                SignExtImm,
+                Rt,
+                Rd,
+                WriteReg,
+                AluOp,
+                AluToReg,
+                RegDest,
+            ],
+            &vec![
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::Bool(false),
+                PipeField::UInt(0),
+                PipeField::Byte(common::Register::T0 as u8),
+                PipeField::Byte(common::Register::T1 as u8),
+                PipeField::Bool(true),
+                PipeField::Op(ALUOperation::SRL),
+                PipeField::Bool(true),
+                PipeField::Dest(common::RegDest::Rd),
+            ],
+        );
+        // SRLV
+        instr = instruction::Instruction::from_parts(
+            instruction::OpCode::RType,
+            Some(instruction::FuncCode::Srlv),
+            Some(Register::T0),
+            Some(Register::T1),
+            Some(Register::T2),
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+        test_instr(
+            instr,
+            "ID/EX",
+            2,
+            &vec![
+                Reg1,
+                Reg2,
+                Muldivhi,
+                Muldivlo,
+                MuldivReqValid,
+                SignExtImm,
+                Rt,
+                Rd,
+                WriteReg,
+                AluOp,
+                AluToReg,
+                RegDest,
+            ],
+            &vec![
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::Bool(false),
+                PipeField::UInt(0),
+                PipeField::Byte(common::Register::T0 as u8),
+                PipeField::Byte(common::Register::T2 as u8),
+                PipeField::Bool(true),
+                PipeField::Op(ALUOperation::SRL),
+                PipeField::Bool(true),
+                PipeField::Dest(common::RegDest::Rd),
+            ],
+        );
+        // SUB
+        // SUBU
+        // XOR
+        instr = instruction::Instruction::from_parts(
+            instruction::OpCode::RType,
+            Some(instruction::FuncCode::Xor),
+            Some(Register::T0),
+            Some(Register::T1),
+            Some(Register::T2),
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+        test_instr(
+            instr,
+            "ID/EX",
+            2,
+            &vec![
+                Reg1,
+                Reg2,
+                Muldivhi,
+                Muldivlo,
+                MuldivReqValid,
+                SignExtImm,
+                Rt,
+                Rd,
+                WriteReg,
+                AluOp,
+                AluToReg,
+                RegDest,
+            ],
+            &vec![
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::Bool(false),
+                PipeField::UInt(0),
+                PipeField::Byte(8),
+                PipeField::Byte(10),
+                PipeField::Bool(true),
+                PipeField::Op(ALUOperation::XOR),
+                PipeField::Bool(true),
+                PipeField::Dest(common::RegDest::Rd),
+            ],
+        );
+        // LUI
+        // SLT
+        // SLTU
+        // SLTI
+        // SLTIU
+        // BEQ
+        // BGEZ
+        // BGEZAL
+        // BGTZ
+        // BLEZ
+        // BLTZAL
+        // BLTZ
+        // BNE
+        // J
+        // JAL
+        // JALR
+        // JR
+        // LB
+        // LBU
+        // LH
+        // LHU
+        // LW
+        // LWL
+        // LWR
+        // SB
+        // SH
+        // SW
+        // SWL
+        // SWR
+        // MFHI
+        instr = instruction::Instruction::from_parts(
+            instruction::OpCode::RType,
+            Some(instruction::FuncCode::Mfhi),
+            None,
+            None,
+            Some(common::Register::T0),
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+        test_instr(
+            instr,
+            "ID/EX",
+            2,
+            &vec![
+                Reg1,
+                Reg2,
+                Muldivhi,
+                Muldivlo,
+                MuldivReqValid,
+                SignExtImm,
+                Rt,
+                Rd,
+                WriteReg,
+                AluOp,
+                AluToReg,
+                RegDest,
+            ],
+            &vec![
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::Bool(false),
+                PipeField::UInt(0),
+                PipeField::Byte(0),
+                PipeField::Byte(8),
+                PipeField::Bool(true),
+                PipeField::Op(ALUOperation::ADD),
+                PipeField::Bool(true),
+                PipeField::Dest(common::RegDest::Rd),
+            ],
+        );
+        // MFLO
+        instr = instruction::Instruction::from_parts(
+            instruction::OpCode::RType,
+            Some(instruction::FuncCode::Mflo),
+            None,
+            None,
+            Some(common::Register::T0),
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+        test_instr(
+            instr,
+            "ID/EX",
+            2,
+            &vec![
+                Reg1,
+                Reg2,
+                Muldivhi,
+                Muldivlo,
+                MuldivReqValid,
+                SignExtImm,
+                Rt,
+                Rd,
+                WriteReg,
+                AluOp,
+                AluToReg,
+                RegDest,
+            ],
+            &vec![
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::Bool(false),
+                PipeField::UInt(0),
+                PipeField::Byte(0),
+                PipeField::Byte(8),
+                PipeField::Bool(true),
+                PipeField::Op(ALUOperation::ADD),
+                PipeField::Bool(true),
+                PipeField::Dest(common::RegDest::Rd),
+            ],
+        );
+        // MTHI
+        instr = instruction::Instruction::from_parts(
+            instruction::OpCode::RType,
+            Some(instruction::FuncCode::Mthi),
+            None,
+            Some(common::Register::T0),
+            None,
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+        test_instr(
+            instr,
+            "ID/EX",
+            2,
+            &vec![
+                Reg1,
+                Reg2,
+                Muldivhi,
+                Muldivlo,
+                MuldivReqValid,
+                SignExtImm,
+                Rt,
+                Rd,
+                WriteReg,
+                AluOp,
+                AluToReg,
+                RegDest,
+            ],
+            &vec![
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::Bool(false),
+                PipeField::UInt(0),
+                PipeField::Byte(0),
+                PipeField::Byte(0),
+                PipeField::Bool(true),
+                PipeField::Op(ALUOperation::ADD),
+                PipeField::Bool(true),
+                PipeField::Dest(common::RegDest::MulDivHi),
+            ],
+        );
+        // MTLO
+        instr = instruction::Instruction::from_parts(
+            instruction::OpCode::RType,
+            Some(instruction::FuncCode::Mtlo),
+            None,
+            Some(common::Register::T0),
+            None,
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+        test_instr(
+            instr,
+            "ID/EX",
+            2,
+            &vec![
+                Reg1,
+                Reg2,
+                Muldivhi,
+                Muldivlo,
+                MuldivReqValid,
+                SignExtImm,
+                Rt,
+                Rd,
+                WriteReg,
+                AluOp,
+                AluToReg,
+                RegDest,
+            ],
+            &vec![
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::Bool(false),
+                PipeField::UInt(0),
+                PipeField::Byte(0),
+                PipeField::Byte(0),
+                PipeField::Bool(true),
+                PipeField::Op(ALUOperation::ADD),
+                PipeField::Bool(true),
+                PipeField::Dest(common::RegDest::MulDivLo),
+            ],
+        );
+        // MOVN
+        // MOVZ
+        // HALT
+        instr = instruction::Instruction::new(HALT_INSTRUCTION).unwrap();
+        test_instr(instr, "ID/EX", 2, &vec![Halt], &vec![PipeField::Bool(true)]);
+        // NOP
+        instr = instruction::Instruction::new(0).unwrap();
+        test_instr(
+            instr,
+            "ID/EX",
+            2,
+            &vec![
+                Reg1,
+                Reg2,
+                Muldivhi,
+                Muldivlo,
+                MuldivReqValid,
+                SignExtImm,
+                Rt,
+                Rd,
+                WriteReg,
+                AluOp,
+                RegDest,
+            ],
+            &vec![
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::UInt(0),
+                PipeField::Bool(false),
+                PipeField::UInt(0),
+                PipeField::Byte(0),
+                PipeField::Byte(0),
+                PipeField::Bool(false),
+                PipeField::Op(ALUOperation::ADD),
+                PipeField::Dest(common::RegDest::XXX),
+            ],
+        );
     }
 
     #[test]

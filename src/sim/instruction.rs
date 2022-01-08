@@ -93,6 +93,7 @@ pub const RS_OFFSET_BITS: u32 = 21;
 pub const RD_OFFSET_BITS: u32 = 11;
 pub const SHAMT_OFFSET_BITS: u32 = 6;
 
+#[derive(Clone, Copy)]
 pub struct Instruction {
     rs: Option<Register>,
     rt: Option<Register>,

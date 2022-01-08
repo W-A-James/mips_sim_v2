@@ -93,21 +93,29 @@ impl Controller {
                                 set_signal_value!(self, MuldivReqValid, PipeField::Bool(true));
                                 set_signal_value!(self, WriteReg, PipeField::Bool(false));
                                 set_signal_value!(self, AluOp, PipeField::Op(ALUOperation::DIV));
+
+                                set_signal_value!(self, RegDest, PipeField::Dest(RegDest::XXX));
                             }
                             FuncCode::Divu => {
                                 set_signal_value!(self, MuldivReqValid, PipeField::Bool(true));
                                 set_signal_value!(self, WriteReg, PipeField::Bool(false));
                                 set_signal_value!(self, AluOp, PipeField::Op(ALUOperation::DIVU));
+
+                                set_signal_value!(self, RegDest, PipeField::Dest(RegDest::XXX));
                             }
                             FuncCode::Mult => {
                                 set_signal_value!(self, MuldivReqValid, PipeField::Bool(true));
                                 set_signal_value!(self, WriteReg, PipeField::Bool(false));
                                 set_signal_value!(self, AluOp, PipeField::Op(ALUOperation::MULT));
+
+                                set_signal_value!(self, RegDest, PipeField::Dest(RegDest::XXX));
                             }
                             FuncCode::Multu => {
                                 set_signal_value!(self, MuldivReqValid, PipeField::Bool(true));
                                 set_signal_value!(self, WriteReg, PipeField::Bool(false));
                                 set_signal_value!(self, AluOp, PipeField::Op(ALUOperation::MULTU));
+
+                                set_signal_value!(self, RegDest, PipeField::Dest(RegDest::XXX));
                             }
                             FuncCode::Nor => {
                                 set_signal_value!(self, AluOp, PipeField::Op(ALUOperation::NOR));
@@ -265,6 +273,8 @@ impl Controller {
                     set_signal_value!(self, AluOp, PipeField::Op(ALUOperation::ADD));
                     set_signal_value!(self, AluSrc1, PipeField::ALU(ALUSrc::Reg1));
                     set_signal_value!(self, AluSrc2, PipeField::ALU(ALUSrc::SignExtImm));
+                    set_signal_value!(self, WriteReg, PipeField::Bool(true));
+                    set_signal_value!(self, AluToReg, PipeField::Bool(true));
                 }
                 OpCode::Addiu => {
                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::Rs));
@@ -273,6 +283,9 @@ impl Controller {
                     set_signal_value!(self, AluOp, PipeField::Op(ALUOperation::ADDU));
                     set_signal_value!(self, AluSrc1, PipeField::ALU(ALUSrc::Reg1));
                     set_signal_value!(self, AluSrc2, PipeField::ALU(ALUSrc::SignExtImm));
+
+                    set_signal_value!(self, WriteReg, PipeField::Bool(true));
+                    set_signal_value!(self, AluToReg, PipeField::Bool(true));
                 }
                 OpCode::Andi => {
                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::Rs));
@@ -281,6 +294,9 @@ impl Controller {
                     set_signal_value!(self, AluOp, PipeField::Op(ALUOperation::AND));
                     set_signal_value!(self, AluSrc1, PipeField::ALU(ALUSrc::Reg1));
                     set_signal_value!(self, AluSrc2, PipeField::ALU(ALUSrc::SignExtImm));
+
+                    set_signal_value!(self, WriteReg, PipeField::Bool(true));
+                    set_signal_value!(self, AluToReg, PipeField::Bool(true));
                 }
                 OpCode::Mul => {
                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::Rs));
@@ -297,6 +313,8 @@ impl Controller {
                                     );
                                     set_signal_value!(self, AluSrc1, PipeField::ALU(ALUSrc::Reg1));
                                     set_signal_value!(self, AluSrc2, PipeField::ALU(ALUSrc::Reg2));
+
+                                    set_signal_value!(self, RegDest, PipeField::Dest(RegDest::Rd));
                                 }
                                 // Clo
                                 FuncCode::Add => {
@@ -307,6 +325,8 @@ impl Controller {
                                     );
                                     set_signal_value!(self, AluSrc1, PipeField::ALU(ALUSrc::Reg1));
                                     set_signal_value!(self, AluSrc2, PipeField::ALU(ALUSrc::Zero));
+
+                                    set_signal_value!(self, RegDest, PipeField::Dest(RegDest::Rd));
                                 }
                                 // Clz
                                 FuncCode::Addu => {
@@ -317,6 +337,8 @@ impl Controller {
                                     );
                                     set_signal_value!(self, AluSrc1, PipeField::ALU(ALUSrc::Reg1));
                                     set_signal_value!(self, AluSrc2, PipeField::ALU(ALUSrc::Zero));
+
+                                    set_signal_value!(self, RegDest, PipeField::Dest(RegDest::Rd));
                                 }
 
                                 _ => unreachable!(),
@@ -324,9 +346,8 @@ impl Controller {
                         }
                         None => unreachable!(),
                     }
-                    set_signal_value!(self, AluOp, PipeField::Op(ALUOperation::MULT));
-                    set_signal_value!(self, AluSrc1, PipeField::ALU(ALUSrc::Reg1));
-                    set_signal_value!(self, AluSrc2, PipeField::ALU(ALUSrc::Reg2));
+                    set_signal_value!(self, WriteReg, PipeField::Bool(true));
+                    set_signal_value!(self, AluToReg, PipeField::Bool(true));
                 }
                 OpCode::Ori => {
                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::Rs));
@@ -335,6 +356,9 @@ impl Controller {
                     set_signal_value!(self, AluOp, PipeField::Op(ALUOperation::OR));
                     set_signal_value!(self, AluSrc1, PipeField::ALU(ALUSrc::Reg1));
                     set_signal_value!(self, AluSrc2, PipeField::ALU(ALUSrc::SignExtImm));
+
+                    set_signal_value!(self, WriteReg, PipeField::Bool(true));
+                    set_signal_value!(self, AluToReg, PipeField::Bool(true));
                 }
                 OpCode::Xori => {
                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::Rs));
@@ -343,6 +367,9 @@ impl Controller {
                     set_signal_value!(self, AluOp, PipeField::Op(ALUOperation::XOR));
                     set_signal_value!(self, AluSrc1, PipeField::ALU(ALUSrc::Reg1));
                     set_signal_value!(self, AluSrc2, PipeField::ALU(ALUSrc::SignExtImm));
+
+                    set_signal_value!(self, WriteReg, PipeField::Bool(true));
+                    set_signal_value!(self, AluToReg, PipeField::Bool(true));
                 }
                 OpCode::Lui => {
                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::XXX));
