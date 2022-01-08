@@ -18,6 +18,7 @@ pub enum OpCode {
     Slti = 0xa,
     Sltiu = 0xb,
     Beq = 0x4,
+    Blez = 0x6,
     Bgelt = 0x1,
     Bgtz = 0x7,
     Bne = 0x5,
@@ -263,7 +264,8 @@ impl Instruction {
                     | OpCode::Beq
                     | OpCode::Bne
                     | OpCode::Bgelt
-                    | OpCode::Bgtz => {
+                    | OpCode::Bgtz
+                    | OpCode::Blez => {
                         rd = None;
                         shamt = None;
                         address = None;
