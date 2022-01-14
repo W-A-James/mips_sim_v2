@@ -86,6 +86,10 @@ impl ClockedMap<u32, u32> for Memory {
     fn load(&mut self, field: u32, value: u32) {
         self.write_buffer.push((field, value));
     }
+
+    fn clear_pending(&mut self) {
+        self.write_buffer.clear();
+    }
 }
 
 #[cfg(test)]

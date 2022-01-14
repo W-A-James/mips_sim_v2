@@ -34,7 +34,6 @@ pub enum PipeFieldName {
     IsNop,
     IsBranch,
     IsJump,
-    TakeJump,
     BranchType,
     BranchTarget,
     BranchTaken,
@@ -67,9 +66,9 @@ pub enum PipeFieldName {
 
 #[derive(Hash, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PipeField {
-    UInt(u32),
+    U32(u32),
     U64(u64),
-    Byte(u8),
+    U8(u8),
     Bool(bool),
     RSrc(common::RegSrc),
     Op(common::ALUOperation),
@@ -82,47 +81,46 @@ lazy_static! {
     pub static ref DEFAULT_VALUES: HashMap<PipeFieldName, PipeField> = {
         let mut m = HashMap::new();
         use PipeFieldName::*;
-        m.insert(PcPlus4, PipeField::UInt(0));
-        m.insert(Reg1, PipeField::UInt(0));
-        m.insert(Reg2, PipeField::UInt(0));
-        m.insert(Muldivhi, PipeField::UInt(0));
-        m.insert(Muldivlo, PipeField::UInt(0));
+        m.insert(PcPlus4, PipeField::U32(0));
+        m.insert(Reg1, PipeField::U32(0));
+        m.insert(Reg2, PipeField::U32(0));
+        m.insert(Muldivhi, PipeField::U32(0));
+        m.insert(Muldivlo, PipeField::U32(0));
         m.insert(MuldivReqValid, PipeField::Bool(false));
-        m.insert(SignExtImm, PipeField::UInt(0));
-        m.insert(Rt, PipeField::Byte(0));
-        m.insert(Rd, PipeField::Byte(0));
-        m.insert(Shamt, PipeField::Byte(0));
-        m.insert(JumpTarget, PipeField::UInt(0));
+        m.insert(SignExtImm, PipeField::U32(0));
+        m.insert(Rt, PipeField::U8(0));
+        m.insert(Rd, PipeField::U8(0));
+        m.insert(Shamt, PipeField::U8(0));
+        m.insert(JumpTarget, PipeField::U32(0));
         m.insert(WriteReg, PipeField::Bool(false));
         m.insert(ReadMem, PipeField::Bool(false));
         m.insert(WriteMem, PipeField::Bool(false));
-        m.insert(MemWidth, PipeField::Byte(1));
+        m.insert(MemWidth, PipeField::U8(1));
         m.insert(MemSigned, PipeField::Bool(true));
-        m.insert(MemData, PipeField::UInt(0));
+        m.insert(MemData, PipeField::U32(0));
         m.insert(AluSrc1, PipeField::ALU(ALUSrc::Zero));
         m.insert(AluSrc2, PipeField::ALU(ALUSrc::Zero));
-        m.insert(ALURes, PipeField::UInt(0));
+        m.insert(ALURes, PipeField::U32(0));
         m.insert(AluToReg, PipeField::Bool(false));
         m.insert(AluOp, PipeField::Op(ALUOperation::ADD));
         m.insert(RegDest, PipeField::Dest(common::RegDest::XXX));
-        m.insert(RegToWrite, PipeField::Byte(0));
+        m.insert(RegToWrite, PipeField::U8(0));
         m.insert(Halt, PipeField::Bool(false));
         m.insert(IsNop, PipeField::Bool(true));
         m.insert(IsBranch, PipeField::Bool(false));
         m.insert(IsJump, PipeField::Bool(false));
-        m.insert(TakeJump, PipeField::Bool(false));
         m.insert(BranchType, PipeField::Branch(common::BranchType::Beq));
-        m.insert(BranchTarget, PipeField::UInt(0));
+        m.insert(BranchTarget, PipeField::U32(0));
         m.insert(BranchTaken, PipeField::Bool(false));
-        m.insert(InstructionPc, PipeField::UInt(0));
-        m.insert(Instruction, PipeField::UInt(0));
+        m.insert(InstructionPc, PipeField::U32(0));
+        m.insert(Instruction, PipeField::U32(0));
         m.insert(InDelaySlot, PipeField::Bool(false));
         m.insert(MuldivRes, PipeField::U64(0));
-        m.insert(PC, PipeField::UInt(0));
-        m.insert(Status, PipeField::UInt(0));
-        m.insert(EPC, PipeField::UInt(0));
-        m.insert(BadVAddr, PipeField::UInt(0));
-        m.insert(Cause, PipeField::UInt(0));
+        m.insert(PC, PipeField::U32(0));
+        m.insert(Status, PipeField::U32(0));
+        m.insert(EPC, PipeField::U32(0));
+        m.insert(BadVAddr, PipeField::U32(0));
+        m.insert(Cause, PipeField::U32(0));
         m.insert(StallFetch, PipeField::Bool(false));
         m.insert(StallDecode, PipeField::Bool(false));
         m.insert(StallExecute, PipeField::Bool(false));
@@ -207,5 +205,9 @@ impl ClockedMap<PipeFieldName, PipeField> for PipeRegister {
 
     fn read(&self, field: PipeFieldName) -> PipeField {
         *self.current_map.get(&field).unwrap()
+    }
+
+    fn clear_pending(&mut self) {
+        self.write_buffer.drain();
     }
 }

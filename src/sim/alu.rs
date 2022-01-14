@@ -1,28 +1,26 @@
 use super::common::ALUOperation;
 use std::error::Error;
 
-pub trait ALUError: std::fmt::Debug {}
 
 #[derive(Debug)]
-pub struct OverflowError;
-impl ALUError for OverflowError {}
-impl std::fmt::Display for OverflowError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "OverflowError")
-    }
+pub enum ALUError {
+    OverflowError,
+    DivideByZeroError
 }
 
-impl Error for OverflowError {}
-
-#[derive(Debug)]
-pub struct DivideByZeroError;
-impl ALUError for DivideByZeroError {}
-impl std::fmt::Display for DivideByZeroError {
+impl std::fmt::Display for ALUError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "DivideByZeroError")
+        match self {
+            ALUError::OverflowError => {
+                write!(f, "OverflowError!")
+            }
+            ALUError::DivideByZeroError => {
+                write!(f, "DivideByZeroError!")
+            }
+        }
     }
 }
-impl Error for DivideByZeroError {}
+impl Error for ALUError{}
 
 // Compute absolute value of v
 fn abs(v: u32) -> u32 {
@@ -33,20 +31,20 @@ fn abs(v: u32) -> u32 {
     }
 }
 
-fn complement_u32(v: u32) -> u32 {
+pub fn complement_u32(v: u32) -> u32 {
     (!v).wrapping_add(1)
 }
 fn complement_u64(v: u64) -> u64 {
     (!v).wrapping_add(1)
 }
 
-pub fn calculate(a: u32, b: u32, op: ALUOperation) -> Result<u32, impl ALUError> {
+pub fn calculate(a: u32, b: u32, op: ALUOperation) -> Result<u32, ALUError> {
     use ALUOperation::*;
     match op {
         ADD => {
             let result = a.overflowing_add(b);
             if result.1 {
-                Err(OverflowError {})
+                Err(ALUError::OverflowError)
             } else {
                 Ok(result.0)
             }
@@ -55,7 +53,7 @@ pub fn calculate(a: u32, b: u32, op: ALUOperation) -> Result<u32, impl ALUError>
         SUB => {
             let result = a.overflowing_sub(b);
             if result.1 {
-                Err(OverflowError {})
+                Err(ALUError::OverflowError)
             } else {
                 Ok(result.0)
             }
@@ -64,7 +62,7 @@ pub fn calculate(a: u32, b: u32, op: ALUOperation) -> Result<u32, impl ALUError>
         MUL => {
             let result = a.overflowing_mul(b);
             if result.1 {
-                Err(OverflowError {})
+                Err(ALUError::OverflowError)
             } else {
                 Ok(result.0)
             }
@@ -113,42 +111,46 @@ pub fn calculate(a: u32, b: u32, op: ALUOperation) -> Result<u32, impl ALUError>
     }
 }
 
-pub fn multiply(a: u32, b: u32, signed: bool) -> u64 {
+pub fn multiply(a: u32, b: u32, signed: bool) -> Result<u64, ALUError> {
     if signed {
         let abs_a = abs(a);
         let abs_b = abs(b);
 
         // if only one is negative, result is negative
         if (abs_a != a) ^ (abs_b != b) {
-            complement_u64(abs_a as u64 * abs_b as u64)
+            Ok(complement_u64(abs_a as u64 * abs_b as u64))
         } else {
-            abs_a as u64 * abs_b as u64
+            Ok(abs_a as u64 * abs_b as u64)
         }
     } else {
-        a as u64 * b as u64
+        Ok(a as u64 * b as u64)
     }
 }
 
-pub fn divide(a: u32, b: u32, signed: bool) -> u64 {
+pub fn divide(a: u32, b: u32, signed: bool) -> Result<u64, ALUError> {
     let div: u32;
     let rem: u32;
 
-    if signed {
-        let abs_a = abs(a);
-        let abs_b = abs(b);
-        if (abs_a != a) ^ (abs_b != b) {
-            div = complement_u32(abs_a / abs_b);
-            rem = complement_u32(abs_a % abs_b);
-        } else {
-            div = abs_a / abs_b;
-            rem = abs_a % abs_b;
-        }
+    if b == 0 {
+        Err(ALUError::DivideByZeroError)
     } else {
-        div = a / b;
-        rem = a % b;
-    }
+        if signed {
+            let abs_a = abs(a);
+            let abs_b = abs(b);
+            if (abs_a != a) ^ (abs_b != b) {
+                div = complement_u32(abs_a / abs_b);
+                rem = complement_u32(abs_a % abs_b);
+            } else {
+                div = abs_a / abs_b;
+                rem = abs_a % abs_b;
+            }
+        } else {
+            div = a / b;
+            rem = a % b;
+        }
 
-    (div as u64) | ((rem as u64) << 32)
+        Ok((div as u64) | ((rem as u64) << 32))
+    }
 }
 
 #[cfg(test)]
@@ -157,25 +159,25 @@ mod tests {
     #[test]
     pub fn test_multiply() {
         let mut res: u64;
-        res = multiply(1, 2, true);
+        res = multiply(1, 2, true).unwrap();
         assert_eq!(res, 2);
-        res = multiply((-1i32) as u32, 2, true);
+        res = multiply((-1i32) as u32, 2, true).unwrap();
         assert_eq!(res, -2i64 as u64);
 
-        res = multiply((-1i32) as u32, 2, false);
+        res = multiply((-1i32) as u32, 2, false).unwrap();
         assert_eq!(res, 0x0000_0001_FFFF_FFFE);
 
-        res = multiply((-1i32) as u32, (-1i32) as u32, true);
+        res = multiply((-1i32) as u32, (-1i32) as u32, true).unwrap();
         assert_eq!(res, 1);
     }
 
     #[test]
     pub fn test_divide() {
         let mut res: u64;
-        res = divide(100, 50, true);
+        res = divide(100, 50, true).unwrap();
         assert_eq!(res & 0x0000_0000_FFFF_FFFF, 2);
 
-        res = divide(50, 100, true);
+        res = divide(50, 100, true).unwrap();
         assert_eq!((res & 0xFFFF_FFFF_0000_0000) >> 32, 50);
     }
 

@@ -84,4 +84,8 @@ impl ClockedMap<PipeFieldName, PipeField> for StallingUnit {
     fn read(&self, field: PipeFieldName) -> PipeField {
         *self.signal.get(&field).unwrap()
     }
+
+    fn clear_pending(&mut self) {
+        self.signal_write_bufffer.drain();
+    }
 }

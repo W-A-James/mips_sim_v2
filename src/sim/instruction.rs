@@ -94,7 +94,7 @@ pub const RS_OFFSET_BITS: u32 = 21;
 pub const RD_OFFSET_BITS: u32 = 11;
 pub const SHAMT_OFFSET_BITS: u32 = 6;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Instruction {
     rs: Option<Register>,
     rt: Option<Register>,
@@ -139,13 +139,11 @@ impl Instruction {
         let op_code: u8 = extract_op_code(instruction_word);
         let op_code = OpCode::try_from(op_code);
         let registers: Vec<Register> = Register::iter().collect();
-        eprintln!("{:#?}", extract_rs(instruction_word));
         let mut rs: Option<Register> = Some(registers[extract_rs(instruction_word) as usize]);
         let mut rt: Option<Register> = Some(registers[extract_rt(instruction_word) as usize]);
         let mut rd: Option<Register> = Some(registers[extract_rd(instruction_word) as usize]);
         let mut shamt: Option<u8> = Some(extract_shamt(instruction_word));
         let mut imm: Option<u16> = Some(extract_imm(instruction_word));
-        let mut address: Option<u32> = Some(extract_address(instruction_word));
 
         if instruction_word == 0 || instruction_word == HALT_INSTRUCTION {
             Ok(Instruction {
@@ -165,7 +163,6 @@ impl Instruction {
                     OpCode::RType => {
                         let func_code = (instruction_word & 0x0000_003f) as u8;
                         let func_code = FuncCode::try_from(func_code);
-                        address = None;
                         imm = None;
 
                         let mut errored = false;
@@ -235,7 +232,7 @@ impl Instruction {
                                 func_code: Some(func_code.clone().unwrap()),
                                 shamt,
                                 imm,
-                                address,
+                                address: None,
                                 instr_word: instruction_word,
                             })
                         }
@@ -268,7 +265,6 @@ impl Instruction {
                     | OpCode::Blez => {
                         rd = None;
                         shamt = None;
-                        address = None;
                         Ok(Instruction {
                             rs,
                             rt,
@@ -277,14 +273,13 @@ impl Instruction {
                             func_code: None,
                             shamt,
                             imm,
-                            address,
+                            address: None,
                             instr_word: instruction_word,
                         })
                     }
                     OpCode::Mul => {
                         shamt = None;
                         imm = None;
-                        address = None;
                         let func_code = (instruction_word & 0x0000_003f) as u8;
                         let func_code = FuncCode::try_from(func_code);
 
@@ -296,11 +291,13 @@ impl Instruction {
                             func_code: Some(func_code.unwrap()),
                             shamt,
                             imm,
-                            address,
+                            address: None,
                             instr_word: instruction_word,
                         })
                     }
                     OpCode::J | OpCode::Jal | OpCode::Eret => {
+                        //eprintln!("Address: {:#?}", address);
+                        let address = Some(extract_address(instruction_word));
                         rs = None;
                         rt = None;
                         rd = None;

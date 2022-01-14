@@ -13,6 +13,7 @@ where
     fn read(&self, field: K) -> V;
     fn clock(&mut self);
     fn load(&mut self, field: K, value: V);
+    fn clear_pending(&mut self);
 }
 
 pub trait Field: Debug + Hash + PartialEq + Eq {}

@@ -33,11 +33,10 @@ impl Controller {
                 WriteMem,
                 MemWidth,
                 Halt,
+                IsNop,
                 BranchType,
-                JumpTarget,
                 IsBranch,
                 IsJump,
-                TakeJump,
                 MemSigned,
                 Reg1Src,
                 Reg2Src,
@@ -59,9 +58,14 @@ impl Controller {
             set_signal_value!(self, WriteReg, PipeField::Bool(false));
             set_signal_value!(self, ReadMem, PipeField::Bool(false));
             set_signal_value!(self, WriteMem, PipeField::Bool(false));
+            set_signal_value!(self, Halt, PipeField::Bool(false));
+            set_signal_value!(self, IsNop, PipeField::Bool(true));
         } else if instr.is_halt() {
             set_signal_value!(self, Halt, PipeField::Bool(true));
+            set_signal_value!(self, IsNop, PipeField::Bool(false));
         } else {
+            set_signal_value!(self, Halt, PipeField::Bool(false));
+            set_signal_value!(self, IsNop, PipeField::Bool(false));
             match instr.get_op_code() {
                 OpCode::RType => {
                     set_signal_value!(self, AluSrc1, PipeField::ALU(ALUSrc::Reg1));
@@ -273,6 +277,8 @@ impl Controller {
                     set_signal_value!(self, AluOp, PipeField::Op(ALUOperation::ADD));
                     set_signal_value!(self, AluSrc1, PipeField::ALU(ALUSrc::Reg1));
                     set_signal_value!(self, AluSrc2, PipeField::ALU(ALUSrc::SignExtImm));
+
+                    set_signal_value!(self, RegDest, PipeField::Dest(RegDest::Rt));
                     set_signal_value!(self, WriteReg, PipeField::Bool(true));
                     set_signal_value!(self, AluToReg, PipeField::Bool(true));
                 }
@@ -284,6 +290,7 @@ impl Controller {
                     set_signal_value!(self, AluSrc1, PipeField::ALU(ALUSrc::Reg1));
                     set_signal_value!(self, AluSrc2, PipeField::ALU(ALUSrc::SignExtImm));
 
+                    set_signal_value!(self, RegDest, PipeField::Dest(RegDest::Rt));
                     set_signal_value!(self, WriteReg, PipeField::Bool(true));
                     set_signal_value!(self, AluToReg, PipeField::Bool(true));
                 }
@@ -294,6 +301,8 @@ impl Controller {
                     set_signal_value!(self, AluOp, PipeField::Op(ALUOperation::AND));
                     set_signal_value!(self, AluSrc1, PipeField::ALU(ALUSrc::Reg1));
                     set_signal_value!(self, AluSrc2, PipeField::ALU(ALUSrc::SignExtImm));
+
+                    set_signal_value!(self, RegDest, PipeField::Dest(RegDest::Rt));
 
                     set_signal_value!(self, WriteReg, PipeField::Bool(true));
                     set_signal_value!(self, AluToReg, PipeField::Bool(true));
@@ -357,6 +366,7 @@ impl Controller {
                     set_signal_value!(self, AluSrc1, PipeField::ALU(ALUSrc::Reg1));
                     set_signal_value!(self, AluSrc2, PipeField::ALU(ALUSrc::SignExtImm));
 
+                    set_signal_value!(self, RegDest, PipeField::Dest(RegDest::Rt));
                     set_signal_value!(self, WriteReg, PipeField::Bool(true));
                     set_signal_value!(self, AluToReg, PipeField::Bool(true));
                 }
@@ -378,8 +388,8 @@ impl Controller {
                     set_signal_value!(self, Reg2Src, PipeField::RSrc(RegSrc::XXX));
 
                     set_signal_value!(self, AluOp, PipeField::Op(ALUOperation::LUI));
-                    set_signal_value!(self, AluSrc1, PipeField::ALU(ALUSrc::Reg2));
-                    set_signal_value!(self, AluSrc2, PipeField::ALU(ALUSrc::SignExtImm));
+                    set_signal_value!(self, AluSrc1, PipeField::ALU(ALUSrc::SignExtImm));
+                    set_signal_value!(self, AluSrc2, PipeField::ALU(ALUSrc::Reg2));
 
                     set_signal_value!(self, WriteReg, PipeField::Bool(true));
                     set_signal_value!(self, AluToReg, PipeField::Bool(true));
@@ -575,10 +585,12 @@ impl Controller {
                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::XXX));
                     set_signal_value!(self, Reg2Src, PipeField::RSrc(RegSrc::XXX));
 
-                    set_signal_value!(self, WriteReg, PipeField::Bool(false));
                     set_signal_value!(self, AluSrc1, PipeField::ALU(ALUSrc::Zero));
                     set_signal_value!(self, AluSrc2, PipeField::ALU(ALUSrc::Zero));
                     set_signal_value!(self, AluOp, PipeField::Op(ALUOperation::OR));
+
+                    set_signal_value!(self, WriteReg, PipeField::Bool(false));
+                    set_signal_value!(self, IsJump, PipeField::Bool(true));
                 }
                 OpCode::Jal => {
                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::XXX));
@@ -587,7 +599,11 @@ impl Controller {
                     set_signal_value!(self, AluSrc1, PipeField::ALU(ALUSrc::PcPlus4));
                     set_signal_value!(self, AluSrc2, PipeField::ALU(ALUSrc::Zero));
                     set_signal_value!(self, AluOp, PipeField::Op(ALUOperation::OR));
+
                     set_signal_value!(self, RegDest, PipeField::Dest(RegDest::Ra));
+
+                    set_signal_value!(self, WriteReg, PipeField::Bool(true));
+                    set_signal_value!(self, IsJump, PipeField::Bool(true));
                 }
                 OpCode::Lb => {
                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::XXX));
@@ -601,7 +617,7 @@ impl Controller {
                     set_signal_value!(self, WriteMem, PipeField::Bool(false));
                     set_signal_value!(self, WriteReg, PipeField::Bool(true));
                     set_signal_value!(self, AluToReg, PipeField::Bool(false));
-                    set_signal_value!(self, MemWidth, PipeField::Byte(1));
+                    set_signal_value!(self, MemWidth, PipeField::U8(1));
                     set_signal_value!(self, MemSigned, PipeField::Bool(true));
                 }
                 OpCode::Lbu => {
@@ -616,7 +632,7 @@ impl Controller {
                     set_signal_value!(self, WriteMem, PipeField::Bool(false));
                     set_signal_value!(self, WriteReg, PipeField::Bool(true));
                     set_signal_value!(self, AluToReg, PipeField::Bool(false));
-                    set_signal_value!(self, MemWidth, PipeField::Byte(1));
+                    set_signal_value!(self, MemWidth, PipeField::U8(1));
                     set_signal_value!(self, MemSigned, PipeField::Bool(false));
                 }
                 OpCode::Lh => {
@@ -631,7 +647,7 @@ impl Controller {
                     set_signal_value!(self, WriteMem, PipeField::Bool(false));
                     set_signal_value!(self, WriteReg, PipeField::Bool(true));
                     set_signal_value!(self, AluToReg, PipeField::Bool(false));
-                    set_signal_value!(self, MemWidth, PipeField::Byte(2));
+                    set_signal_value!(self, MemWidth, PipeField::U8(2));
                     set_signal_value!(self, MemSigned, PipeField::Bool(true));
                 }
                 OpCode::Lhu => {
@@ -646,7 +662,7 @@ impl Controller {
                     set_signal_value!(self, WriteMem, PipeField::Bool(false));
                     set_signal_value!(self, WriteReg, PipeField::Bool(true));
                     set_signal_value!(self, AluToReg, PipeField::Bool(false));
-                    set_signal_value!(self, MemWidth, PipeField::Byte(2));
+                    set_signal_value!(self, MemWidth, PipeField::U8(2));
                     set_signal_value!(self, MemSigned, PipeField::Bool(false));
                 }
                 OpCode::Lw => {
@@ -661,7 +677,7 @@ impl Controller {
                     set_signal_value!(self, WriteMem, PipeField::Bool(false));
                     set_signal_value!(self, WriteReg, PipeField::Bool(true));
                     set_signal_value!(self, AluToReg, PipeField::Bool(false));
-                    set_signal_value!(self, MemWidth, PipeField::Byte(4));
+                    set_signal_value!(self, MemWidth, PipeField::U8(4));
                     set_signal_value!(self, MemSigned, PipeField::Bool(true));
                 }
                 OpCode::Lwl => {
@@ -700,7 +716,7 @@ impl Controller {
                     set_signal_value!(self, ReadMem, PipeField::Bool(false));
                     set_signal_value!(self, WriteMem, PipeField::Bool(true));
                     set_signal_value!(self, AluToReg, PipeField::Bool(false));
-                    set_signal_value!(self, MemWidth, PipeField::Byte(1));
+                    set_signal_value!(self, MemWidth, PipeField::U8(1));
                 }
                 OpCode::Sh => {
                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::Rt));
@@ -713,7 +729,7 @@ impl Controller {
                     set_signal_value!(self, ReadMem, PipeField::Bool(false));
                     set_signal_value!(self, WriteMem, PipeField::Bool(true));
                     set_signal_value!(self, AluToReg, PipeField::Bool(false));
-                    set_signal_value!(self, MemWidth, PipeField::Byte(2));
+                    set_signal_value!(self, MemWidth, PipeField::U8(2));
                 }
                 OpCode::Sw => {
                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::Rt));
@@ -726,7 +742,7 @@ impl Controller {
                     set_signal_value!(self, ReadMem, PipeField::Bool(false));
                     set_signal_value!(self, WriteMem, PipeField::Bool(true));
                     set_signal_value!(self, AluToReg, PipeField::Bool(false));
-                    set_signal_value!(self, MemWidth, PipeField::Byte(4));
+                    set_signal_value!(self, MemWidth, PipeField::U8(4));
                 }
                 OpCode::Swl => {
                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::Rt));
@@ -830,7 +846,7 @@ mod tests {
         assert_state_eq!(controller, ReadMem, PipeField::Bool(false));
         assert_state_eq!(controller, AluOp, PipeField::Op(ALUOperation::ADD));
         assert_state_eq!(controller, AluToReg, PipeField::Bool(true));
-        assert_state_eq!(controller, RegDest, PipeField::Dest(RegDest::Rd));
+        assert_state_eq!(controller, RegDest, PipeField::Dest(RegDest::Rt));
         assert_state_eq!(controller, AluSrc1, PipeField::ALU(ALUSrc::Reg1));
         assert_state_eq!(controller, AluSrc2, PipeField::ALU(ALUSrc::SignExtImm));
 

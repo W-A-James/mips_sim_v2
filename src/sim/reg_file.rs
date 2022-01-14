@@ -71,6 +71,10 @@ impl ClockedMap<Register, u32> for RegFile {
     fn load(&mut self, field: Register, value: u32) {
         self.write_buffer.insert(RegVal { reg: field, value });
     }
+
+    fn clear_pending(&mut self) {
+        self.write_buffer.drain();
+    }
 }
 
 #[cfg(test)]
