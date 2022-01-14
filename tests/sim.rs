@@ -56,8 +56,9 @@ mod tests {
             assert_eq!(
                 sim_state.reg_file.read(r),
                 v,
-                "Failed on test: '{}'",
-                test_name
+                "Failed on test: {} checking register: {:#?}",
+                test_name,
+                r
             );
         }
     }
@@ -82,7 +83,7 @@ mod tests {
 
     use Register::*;
 
-    build_test! {addi, vec![(V0, 5), (V1, 4)]}
+    build_test! {addi, vec![(V0, 5), (V1, 5)]}
     build_test! {addiu, vec![(V0, 5), (V1, 4)]}
     build_test! {add, vec![(T0, 70), (T1, 130), (T3, 64), (T4, 0xFFFF_FFFE)]}
     build_test! {and, vec![(T2, 0), (T3, 0), (T4, 0), (T5, 1)]}
@@ -270,31 +271,31 @@ mod tests {
 
     build_test! {lwr, vec![], ignore}
 
-    build_test!{sb, vec![], ignore}
+    build_test! {sb, vec![], ignore}
 
-    build_test!{sh, vec![], ignore}
+    build_test! {sh, vec![], ignore}
 
-    build_test!{sw, vec![], ignore}
+    build_test! {sw, vec![], ignore}
 
-    build_test!{swl, vec![], ignore}
+    build_test! {swl, vec![], ignore}
 
-    build_test!{swr, vec![], ignore}
+    build_test! {swr, vec![], ignore}
 
-    build_test!{mtlo_mthi, vec![(HI, 52), (LO, 50)]}
+    build_test! {mtlo_mthi, vec![(HI, 52), (LO, 50)]}
 
-    build_test!{movn, vec![], ignore}
+    build_test! {movn, vec![], ignore}
 
-    build_test!{movz, vec![], ignore}
+    build_test! {movz, vec![], ignore}
 
-    build_test!{eret, vec![], ignore}
+    build_test! {eret, vec![], ignore}
 
-    build_test!{syscall, vec![], ignore}
+    build_test! {syscall, vec![], ignore}
 
-    build_test!{break, vec![], ignore}
+    build_test! {break, vec![], ignore}
 
-    build_test!{test_raw_dep, vec![(T0, 0xffff_000f)]}
+    build_test! {test_raw_dep, vec![(T0, 0xffff_000f)]}
 
-    build_test!{test_raw_dep2, vec![(T2, 0x0002_0000)]}
+    build_test! {test_raw_dep2, vec![(T0, 0x0001_0000),(T1, 0x0001_0000), (T2, 0x0002_0000)]}
 
-    build_test!{test_back_to_back_raw_dep, vec![(T3, 8)]}
+    build_test! {test_back_to_back_raw_dep, vec![(T3, 8)]}
 }
