@@ -1,11 +1,11 @@
 .text
-li		$t0, 0
-lb		$t1, 0($t0)
-lb		$t2, 1($t0)
-lb		$t3, 2($t0)
-lb		$t4, 3($t0)
-lb		$t5, 4($t0)
+li		$t0, 0x0040
+lb		$t1, d1
+lb		$t2, d1 + 1
+lb		$t3, d1 + 2
+lb		$t4, d1 + 3
+lb		$t5, d1 + 4
 
 .data
-.word 0xabcd0000
-.word 0xdeadbeef
+d1: .word 0xabcd0000
+d2: .word 0xdeadbeef

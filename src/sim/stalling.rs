@@ -1,7 +1,7 @@
 use super::common::Register;
 use super::pipe_reg::{PipeField, PipeFieldName, DEFAULT_VALUES};
 use super::traits::ClockedMap;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone)]
 struct PipeVal {
@@ -13,7 +13,7 @@ struct PipeVal {
 pub struct StallingUnit {
     write_in_flight: HashMap<Register, bool>,
     signal: HashMap<PipeFieldName, PipeField>,
-    signal_write_bufffer: HashSet<PipeVal>, // Need state to handle taking branches/jumps
+    signal_write_buffer: HashMap<PipeFieldName, PipeField>,
 }
 
 impl StallingUnit {
@@ -49,7 +49,7 @@ impl StallingUnit {
         StallingUnit {
             write_in_flight,
             signal,
-            signal_write_bufffer: HashSet::new(),
+            signal_write_buffer: HashMap::new(),
         }
     }
 
@@ -69,15 +69,14 @@ impl StallingUnit {
 impl ClockedMap<PipeFieldName, PipeField> for StallingUnit {
     fn load(&mut self, field: PipeFieldName, value: PipeField) {
         if self.signal.contains_key(&field) {
-            self.signal_write_bufffer
-                .insert(PipeVal { name: field, value });
+            self.signal_write_buffer.insert(field, value);
         } else {
         }
     }
 
     fn clock(&mut self) {
-        for pipe_val in self.signal_write_bufffer.drain() {
-            self.signal.insert(pipe_val.name, pipe_val.value).unwrap();
+        for (k, v) in self.signal_write_buffer.drain() {
+            self.signal.insert(k, v).unwrap();
         }
     }
 
@@ -86,6 +85,6 @@ impl ClockedMap<PipeFieldName, PipeField> for StallingUnit {
     }
 
     fn clear_pending(&mut self) {
-        self.signal_write_bufffer.drain();
+        self.signal_write_buffer.drain();
     }
 }

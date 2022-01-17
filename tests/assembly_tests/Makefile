@@ -35,6 +35,7 @@ rout_files = addi.rout \
 			lh.rout \
 			lhu.rout \
 			mtlo_mthi.rout\
+			#clo.rout\
 
 rdata_files = addi.rdata \
 			addiu.rdata \
@@ -73,6 +74,7 @@ rdata_files = addi.rdata \
 			lh.rdata \
 			lhu.rdata \
 			mtlo_mthi.rdata \
+			#clo.rdata\
 
 cc = mips-img-linux-gnu-gcc
 as = mips-img-linux-gnu-as

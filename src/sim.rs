@@ -33,6 +33,8 @@ pub struct Sim {
     bad_v_addr: pipe_reg::PipeRegister,
     controller: controller::Controller,
     memory: mem::Memory,
+
+    cycles: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -186,6 +188,7 @@ impl Sim {
             memory,
             reg_file,
             halt,
+            cycles: 0u64,
         };
 
         sim.initialize_registers();
@@ -216,12 +219,23 @@ impl Sim {
 
     pub fn load_binary(&mut self, instrs: &Vec<u32>, data: &Vec<u32>) {
         let mut mem_index = TEXT_START;
+        eprintln!("Instructions");
         for v in instrs {
             self.memory.load(mem_index, *v);
+            eprintln!(
+                "0x{:X}: {:#?}",
+                mem_index,
+                instruction::Instruction::new(*v).unwrap()
+            );
             mem_index = mem_index + 4;
         }
+
+        self.reg_file.load(Register::GP, TEXT_START + 4);
+
+        eprintln!("Data");
         for v in data {
             self.memory.load(mem_index, *v);
+            eprintln!("0x{:X}: {}", mem_index, *v);
             mem_index += 4;
         }
 
@@ -268,7 +282,7 @@ macro_rules! insert_bubble {
         $sim.id_ex_reg
             .load(PipeFieldName::ReadMem, PipeField::Bool(false));
         $sim.id_ex_reg
-            .load(PipeFieldName::IsNop, PipeField::Bool(false));
+            .load(PipeFieldName::IsNop, PipeField::Bool(true));
         $sim.id_ex_reg
             .load(PipeFieldName::Instruction, PipeField::U32(0));
         $sim.id_ex_reg
@@ -292,56 +306,6 @@ macro_rules! insert_bubble {
     }};
     ($sim: expr, MEMORY) => {{}};
     ($sim: expr, WRITEBACK) => {{}};
-}
-
-macro_rules! get_alu_src_val {
-    ($sim: expr, $alu_src: expr, $field_name: ident) => {{
-        let src = $sim.id_ex_reg.read(PipeFieldName::$field_name);
-        $alu_src = match src {
-            PipeField::ALU(ALUSrc::Shamt) => match $sim.id_ex_reg.read(PipeFieldName::Shamt) {
-                PipeField::U8(shamt) => shamt as u32,
-                _ => panic!(),
-            },
-            PipeField::ALU(ALUSrc::Zero) => 0,
-            PipeField::ALU(ALUSrc::Reg1) => match $sim.id_ex_reg.read(PipeFieldName::Reg1) {
-                PipeField::U32(r) => r,
-                _ => panic!(),
-            },
-            PipeField::ALU(ALUSrc::Reg2) => match $sim.id_ex_reg.read(PipeFieldName::Reg2) {
-                PipeField::U32(r) => r,
-                _ => panic!(),
-            },
-            PipeField::ALU(ALUSrc::Muldivlo) => {
-                match $sim.id_ex_reg.read(PipeFieldName::Muldivlo) {
-                    PipeField::U32(m) => m,
-                    _ => panic!(),
-                }
-            }
-            PipeField::ALU(ALUSrc::Muldivhi) => {
-                match $sim.id_ex_reg.read(PipeFieldName::Muldivhi) {
-                    PipeField::U32(m) => m,
-                    _ => panic!(),
-                }
-            }
-            PipeField::ALU(ALUSrc::SignExtImm) => {
-                match $sim.id_ex_reg.read(PipeFieldName::SignExtImm) {
-                    PipeField::U32(i) => i,
-                    _ => panic!(),
-                }
-            }
-            PipeField::ALU(ALUSrc::ZeroExtImm) => {
-                match $sim.id_ex_reg.read(PipeFieldName::SignExtImm) {
-                    PipeField::U32(i) => i & 0x0000_FFFF,
-                    _ => panic!(),
-                }
-            }
-            PipeField::ALU(ALUSrc::PcPlus4) => match $sim.id_ex_reg.read(PipeFieldName::PcPlus4) {
-                PipeField::U32(pc_4) => pc_4,
-                _ => panic!(),
-            },
-            _ => panic!(),
-        }
-    }};
 }
 
 impl Sim {
@@ -397,6 +361,7 @@ impl Sim {
             PipeField::U32(pc_) => pc_,
             _ => panic!(),
         };
+        eprintln!("Fetch: pc:0x{:X}", pc);
 
         // Check if this stage is being squashed
         if squash {
@@ -409,6 +374,7 @@ impl Sim {
             // Don't send any new values
         } else {
             let instr = self.memory.read(pc);
+            eprintln!("instr word: 0x{:X}", instr);
 
             self.if_id_reg
                 .load(PipeFieldName::Instruction, PipeField::U32(instr));
@@ -486,17 +452,26 @@ impl Sim {
                 .pass_through(&mut self.id_ex_reg, PipeFieldName::PcPlus4);
 
             let parsed_instr = instruction::Instruction::new(instr);
+            eprintln!("Decode: instr: 0x{:X}", instr);
             match parsed_instr {
                 Ok(instruction) => {
+                    eprintln!("Decode: halt: {}", instruction.is_halt());
+                    eprintln!("Instr word: 0x{:X}", instruction.get_instr_word());
                     self.controller.update_state(&instruction);
                     for (field, value) in self.controller.get_state_vec() {
                         // Load default controller values
                         self.id_ex_reg.load(field, value);
                     }
 
+                    //self.id_ex_reg.load(PipeFieldName::AluSrc1, self.controller.get_state())
+
                     // Check if is halt or nop
                     match self.controller.get_state(PipeFieldName::Halt).unwrap() {
                         PipeField::Bool(true) => {
+                            eprintln!("Decode: FOUND HALT INSTRUCTION");
+                            self.id_ex_reg.clear_pending();
+                            self.id_ex_reg
+                                .load(PipeFieldName::Halt, PipeField::Bool(true));
                             return;
                         }
 
@@ -514,14 +489,32 @@ impl Sim {
 
                     let start_stalling = self.stalling_unit.check_write_in_flight(r1)
                         || self.stalling_unit.check_write_in_flight(r2);
+                    eprintln!("start_stalling {}", start_stalling);
+
+                    // If fetch was stalling and we are no longer stalling, run fetch_stage again
+                    match self.stalling_unit.read(PipeFieldName::StallFetch) {
+                        PipeField::Bool(true) => {
+                            if !start_stalling {
+                                self.fetch_stage(
+                                    false,
+                                    match self.stalling_unit.read(PipeFieldName::SquashFetch) {
+                                        PipeField::Bool(b) => b,
+                                        _ => panic!(),
+                                    },
+                                );
+                            }
+                        }
+                        _ => {}
+                    }
 
                     self.stalling_unit
                         .load(PipeFieldName::StallFetch, PipeField::Bool(start_stalling));
-                    // This should clear any pending writes into if_id_reg as well
 
                     if start_stalling {
                         // Send execute bubble
                         self.if_id_reg.clear_pending();
+                        self.pc.clear_pending();
+
                         self.if_id_reg.load(
                             PipeFieldName::PcPlus4,
                             self.if_id_reg.read(PipeFieldName::PcPlus4),
@@ -537,8 +530,12 @@ impl Sim {
                         self.pc
                             .load(PipeFieldName::PC, self.pc.read(PipeFieldName::PC));
                         insert_bubble!(self, DECODE);
+                        eprintln!("{:#?}", self.id_ex_reg);
                         return;
                     }
+                    // TODO: What should happen when we recover from a stall?
+                    //      pc should advance
+                    //      we load in the newly fetch instruction
 
                     let reg_1_val = self.reg_file.read(r1);
                     let reg_2_val = self.reg_file.read(r2);
@@ -627,7 +624,7 @@ impl Sim {
                     }
                     // Calculate branch target
                     let sign_ext_imm = match instruction.get_imm() {
-                        Some(shamt) => Sim::sign_ext_imm(shamt),
+                        Some(imm) => Sim::sign_ext_imm(imm),
                         None => 0,
                     };
                     let offset = sign_ext_imm << 2;
@@ -688,7 +685,7 @@ impl Sim {
                     self.id_ex_reg.load(
                         PipeFieldName::SignExtImm,
                         PipeField::U32(match instruction.get_imm() {
-                            Some(shamt) => Sim::sign_ext_imm(shamt),
+                            Some(imm) => Sim::sign_ext_imm(imm),
                             None => 0,
                         }),
                     );
@@ -739,11 +736,63 @@ impl Sim {
             _ => panic!(),
         };
         // Write to halt register
+        eprintln!(
+            "Halting immediately due to exception: {:#?} at pc: 0x{:X}",
+            err, epc
+        );
         self.halt.load(PipeFieldName::Halt, PipeField::Bool(true));
         // TODO:
         // Write to cause register
         // Write to epc
         self.epc_reg.load(PipeFieldName::EPC, PipeField::U32(epc));
+    }
+
+    fn get_alu_src_val(&mut self, src: PipeFieldName) -> u32 {
+        let src = self.id_ex_reg.read(src);
+        match src {
+            PipeField::ALU(ALUSrc::Shamt) => match self.id_ex_reg.read(PipeFieldName::Shamt) {
+                PipeField::U8(shamt) => shamt as u32,
+                _ => panic!(),
+            },
+            PipeField::ALU(ALUSrc::Zero) => 0,
+            PipeField::ALU(ALUSrc::Reg1) => match self.id_ex_reg.read(PipeFieldName::Reg1) {
+                PipeField::U32(r) => r,
+                _ => panic!(),
+            },
+            PipeField::ALU(ALUSrc::Reg2) => match self.id_ex_reg.read(PipeFieldName::Reg2) {
+                PipeField::U32(r) => r,
+                _ => panic!(),
+            },
+            PipeField::ALU(ALUSrc::Muldivlo) => {
+                match self.id_ex_reg.read(PipeFieldName::Muldivlo) {
+                    PipeField::U32(m) => m,
+                    _ => panic!(),
+                }
+            }
+            PipeField::ALU(ALUSrc::Muldivhi) => {
+                match self.id_ex_reg.read(PipeFieldName::Muldivhi) {
+                    PipeField::U32(m) => m,
+                    _ => panic!(),
+                }
+            }
+            PipeField::ALU(ALUSrc::SignExtImm) => {
+                match self.id_ex_reg.read(PipeFieldName::SignExtImm) {
+                    PipeField::U32(i) => i,
+                    _ => panic!(),
+                }
+            }
+            PipeField::ALU(ALUSrc::ZeroExtImm) => {
+                match self.id_ex_reg.read(PipeFieldName::SignExtImm) {
+                    PipeField::U32(i) => i & 0x0000_FFFF,
+                    _ => panic!(),
+                }
+            }
+            PipeField::ALU(ALUSrc::PcPlus4) => match self.id_ex_reg.read(PipeFieldName::PcPlus4) {
+                PipeField::U32(pc_4) => pc_4,
+                _ => panic!(),
+            },
+            _ => panic!(),
+        }
     }
 
     fn execute_stage(&mut self, stall: bool, squash: bool) {
@@ -756,22 +805,20 @@ impl Sim {
             insert_bubble!(self, EXECUTE);
         } else if stall {
         } else {
-            let alu_src_1: u32;
-            let alu_src_2: u32;
-
             // Check if is halt
             match self.id_ex_reg.read(PipeFieldName::Halt) {
                 PipeField::Bool(true) => {
+                    eprintln!("Execute: FOUND HALT INSTRUCTION");
                     self.id_ex_reg
                         .pass_through(&mut self.ex_mem_reg, PipeFieldName::Halt);
                     return;
                 }
-
                 _ => {}
             }
+
             // get alu operands
-            get_alu_src_val![self, alu_src_1, AluSrc1];
-            get_alu_src_val![self, alu_src_2, AluSrc2];
+            let alu_src_1 = self.get_alu_src_val(PipeFieldName::AluSrc1);
+            let alu_src_2 = self.get_alu_src_val(PipeFieldName::AluSrc2);
 
             let alu_operation = match self.id_ex_reg.read(PipeFieldName::AluOp) {
                 PipeField::Op(op) => op,
@@ -786,8 +833,13 @@ impl Sim {
                 }
             };
             eprintln!(
-                "alu_src1: 0x{:X}, alu_src2: 0x{:X}, alu_op: {:#?}, alu_result: 0x{:X} to be written to Register {:#?}",
-                alu_src_1, alu_src_2, alu_operation, alu_result, match self.id_ex_reg.read(PipeFieldName::RegDest) {
+                "Execute\nalu_val_1: 0x{:X} from {:?}, alu_val_2: 0x{:X} from {:?}\nalu_op: {:?}, alu_result: 0x{:X} to be written to Register {:?}\n",
+                alu_src_1,
+                self.id_ex_reg.read(PipeFieldName::AluSrc1),
+                alu_src_2,
+                self.id_ex_reg.read(PipeFieldName::AluSrc2),
+                alu_operation, alu_result,
+                match self.id_ex_reg.read(PipeFieldName::RegDest) {
                     PipeField::Dest(r) => r,
                     _ => panic!()
             }
@@ -835,6 +887,9 @@ impl Sim {
 
                 self.ex_mem_reg
                     .load(PipeFieldName::MuldivRes, PipeField::U64(muldiv_result));
+            } else {
+                self.ex_mem_reg
+                    .load(PipeFieldName::MuldivRes, PipeField::U64(0));
             }
 
             // Determine RegToWrite
@@ -914,8 +969,11 @@ impl Sim {
         } else {
             match self.ex_mem_reg.read(PipeFieldName::Halt) {
                 PipeField::Bool(true) => {
+                    eprintln!("Memory: FOUND HALT INSTRUCTION");
                     self.ex_mem_reg
                         .pass_through(&mut self.mem_wb_reg, PipeFieldName::Halt);
+                    self.mem_wb_reg
+                        .load(PipeFieldName::IsNop, PipeField::Bool(false));
                     return;
                 }
 
@@ -938,8 +996,11 @@ impl Sim {
                 _ => panic!(),
             };
 
+            let address = alu_res + self.reg_file.read(Register::GP);
             if read_mem {
-                let mem_val = self.memory.read(alu_res);
+                eprintln!("Memory: Reading memory at address: 0x{:X}", address);
+                let mem_val = self.memory.read(address);
+                eprintln!("value: 0x{:X}", mem_val);
                 self.mem_wb_reg
                     .load(PipeFieldName::MemData, PipeField::U32(mem_val));
             } else if write_mem {
@@ -948,7 +1009,7 @@ impl Sim {
                     _ => panic!(),
                 };
 
-                let rem = alu_res % 4;
+                let rem = address % 4;
                 match rem {
                     0 => {
                         let mut input_mask = 0u32;
@@ -959,14 +1020,14 @@ impl Sim {
                         }
 
                         let lower_bytes = (input_mask & reg_2_data) << ((4 - mem_width) * 8);
-                        let current_mem_val = self.memory.read(alu_res);
+                        let current_mem_val = self.memory.read(address);
                         let output_val = (current_mem_val & output_mask) | lower_bytes;
-                        self.memory.load(alu_res, output_val);
+                        self.memory.load(address, output_val);
                     }
                     rem => {
                         if mem_width as u32 > rem {
-                            let left_mem_val = self.memory.read(alu_res - rem);
-                            let right_mem_val = self.memory.read(alu_res - rem + 4);
+                            let left_mem_val = self.memory.read(address - rem);
+                            let right_mem_val = self.memory.read(address - rem + 4);
 
                             let mut left_mask = 0;
                             let mut right_mask = 0;
@@ -982,10 +1043,10 @@ impl Sim {
                             let left_val_to_write = (left_mem_val & !left_mask) | upper_bytes;
                             let right_val_to_write = (right_mem_val & !right_mask) | lower_bytes;
 
-                            self.memory.load(alu_res - rem, left_val_to_write);
-                            self.memory.load(alu_res - rem + 4, right_val_to_write);
+                            self.memory.load(address - rem, left_val_to_write);
+                            self.memory.load(address - rem + 4, right_val_to_write);
                         } else {
-                            let current_mem_val = self.memory.read(alu_res - rem);
+                            let current_mem_val = self.memory.read(address - rem);
                             let mut mask = 0;
                             for _ in 0..mem_width {
                                 mask = (mask | 0xFF) << 8;
@@ -994,7 +1055,7 @@ impl Sim {
                             mask = mask << ((4 - rem) * 8);
 
                             let output_val = (current_mem_val & !mask) | (val & mask);
-                            self.memory.load(alu_res - rem, output_val);
+                            self.memory.load(address - rem, output_val);
                         }
                     }
                 }
@@ -1032,8 +1093,16 @@ impl Sim {
             insert_bubble!(self, WRITEBACK);
         } else if stall {
         } else {
+            match self.mem_wb_reg.read(PipeFieldName::IsNop) {
+                PipeField::Bool(true) => {
+                    eprintln!("Writeback: FOUND NOP");
+                    return;
+                }
+                _ => {}
+            }
             match self.mem_wb_reg.read(PipeFieldName::Halt) {
                 PipeField::Bool(true) => {
+                    eprintln!("Writeback: FOUND HALT INSTRUCTION");
                     self.mem_wb_reg
                         .pass_through(&mut self.halt, PipeFieldName::Halt);
                     return;
@@ -1057,12 +1126,11 @@ impl Sim {
             let reg_target = Register::try_from(reg_target).unwrap();
 
             if reg_write {
-                if alu_to_reg {
-                    let alu_res = match self.mem_wb_reg.read(PipeFieldName::ALURes) {
+                let data = if alu_to_reg {
+                    match self.mem_wb_reg.read(PipeFieldName::ALURes) {
                         PipeField::U32(res) => res,
                         _ => panic!(),
-                    };
-                    self.reg_file.load(reg_target, alu_res);
+                    }
                 } else {
                     let mut mem_data = match self.mem_wb_reg.read(PipeFieldName::MemData) {
                         PipeField::U32(m) => m,
@@ -1072,6 +1140,7 @@ impl Sim {
                         PipeField::U8(w) => w,
                         _ => panic!(),
                     };
+                    // TODO: Check if mem is signed
                     match mem_width {
                         1 => {
                             mem_data &= 0x0000_00FF;
@@ -1082,16 +1151,39 @@ impl Sim {
                         4 => {}
                         _ => unreachable!(),
                     }
-                    self.reg_file.load(reg_target, mem_data);
-                }
+                    eprintln!(
+                        "Writing data 0x{:X} to register {:#?}",
+                        mem_data, reg_target
+                    );
+                    mem_data
+                };
 
+                self.reg_file.load(reg_target, data);
                 self.stalling_unit.clear_write_in_flight(reg_target);
+                eprintln!(
+                    "Cycle {} Writeback to reg: {:#?} with value 0x{:X}",
+                    self.cycles, reg_target, data
+                );
             }
 
             match self.mem_wb_reg.read(PipeFieldName::MuldivReqValid) {
                 PipeField::Bool(true) => {
-                    self.stalling_unit.clear_write_in_flight(Register::LO);
+                    let muldiv_res = match self.mem_wb_reg.read(PipeFieldName::MuldivRes) {
+                        PipeField::U64(v) => v,
+                        x => panic!("Invalid enum in MuldivRes: {:#?}", x),
+                    };
+                    eprintln!("Writeback: muldiv_res: 0x{:X}", muldiv_res);
+                    self.reg_file.load(
+                        Register::HI,
+                        ((muldiv_res & 0xFFFF_FFFF_0000_0000) >> 32) as u32,
+                    );
+                    self.reg_file.load(
+                        Register::LO,
+                        ((muldiv_res & 0x0000_0000_FFFF_FFFF) >> 32) as u32,
+                    );
+
                     self.stalling_unit.clear_write_in_flight(Register::HI);
+                    self.stalling_unit.clear_write_in_flight(Register::LO);
                 }
                 _ => {}
             }
@@ -1105,6 +1197,7 @@ impl Sim {
         // 1b. EX/MEM.RegisterRd = ID/EX.RegisterRt
         // 2a. MEM/WB.RegisterRd = ID/EX.RegisterRs
         // 2b. MEM/WB.RegisterRd = ID/EX.RegisterRt
+        eprintln!("Cycle: {}", self.cycles);
         let stall_fetch = match self.stalling_unit.read(PipeFieldName::StallFetch) {
             PipeField::Bool(b) => b,
             _ => panic!(),
@@ -1147,6 +1240,10 @@ impl Sim {
         self.reg_file.clock();
 
         self.memory.clock();
+        // eprintln!("Cycle: {}\n{:#?}", self.cycles, self.get_state());
+        // eprintln!("Cycle: {}\n{:#?}", self.cycles, self.get_state());
+
+        self.cycles += 1;
     }
 
     fn initialize_registers(&mut self) {

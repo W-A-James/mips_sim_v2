@@ -263,23 +263,19 @@ impl Instruction {
                     | OpCode::Bgelt
                     | OpCode::Bgtz
                     | OpCode::Blez => {
-                        rd = None;
-                        shamt = None;
                         Ok(Instruction {
                             rs,
                             rt,
-                            rd,
+                            rd: None,
                             op_code: op,
                             func_code: None,
-                            shamt,
+                            shamt: None,
                             imm,
                             address: None,
                             instr_word: instruction_word,
                         })
                     }
                     OpCode::Mul => {
-                        shamt = None;
-                        imm = None;
                         let func_code = (instruction_word & 0x0000_003f) as u8;
                         let func_code = FuncCode::try_from(func_code);
 
@@ -289,29 +285,23 @@ impl Instruction {
                             rd,
                             op_code: op,
                             func_code: Some(func_code.unwrap()),
-                            shamt,
-                            imm,
+                            shamt: None,
+                            imm: None,
                             address: None,
                             instr_word: instruction_word,
                         })
                     }
                     OpCode::J | OpCode::Jal | OpCode::Eret => {
-                        //eprintln!("Address: {:#?}", address);
                         let address = Some(extract_address(instruction_word));
-                        rs = None;
-                        rt = None;
-                        rd = None;
-                        shamt = None;
-                        imm = None;
 
                         Ok(Instruction {
-                            rs,
-                            rt,
-                            rd,
+                            rs: None,
+                            rt: None,
+                            rd: None,
                             op_code: op,
                             func_code: None,
-                            shamt,
-                            imm,
+                            shamt: None,
+                            imm: None,
                             address,
                             instr_word: instruction_word,
                         })

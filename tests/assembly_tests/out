@@ -1,0 +1,429 @@
+   Compiling mips_sim v0.1.0 (/home/wj/dev/local/mips_sim)
+    Finished test [unoptimized + debuginfo] target(s) in 1.67s
+     Running unittests (/home/wj/dev/local/mips_sim/target/debug/deps/mips_sim-ca02c202864600f3)
+     Running tests/sim.rs (/home/wj/dev/local/mips_sim/target/debug/deps/sim-9de2dbad21a04877)
+Instructions
+0x400000: Instruction {
+    rs: Some(
+        ZERO,
+    ),
+    rt: Some(
+        T0,
+    ),
+    rd: None,
+    op_code: Addiu,
+    func_code: None,
+    shamt: None,
+    imm: Some(
+        64,
+    ),
+    address: None,
+    instr_word: 604504128,
+}
+0x400004: Instruction {
+    rs: Some(
+        ZERO,
+    ),
+    rt: Some(
+        T1,
+    ),
+    rd: None,
+    op_code: Lui,
+    func_code: None,
+    shamt: None,
+    imm: Some(
+        65,
+    ),
+    address: None,
+    instr_word: 1007222849,
+}
+0x400008: Instruction {
+    rs: Some(
+        T1,
+    ),
+    rt: Some(
+        T1,
+    ),
+    rd: None,
+    op_code: Lb,
+    func_code: None,
+    shamt: None,
+    imm: Some(
+        48,
+    ),
+    address: None,
+    instr_word: 2166947888,
+}
+0x40000C: Instruction {
+    rs: Some(
+        ZERO,
+    ),
+    rt: Some(
+        T2,
+    ),
+    rd: None,
+    op_code: Lui,
+    func_code: None,
+    shamt: None,
+    imm: Some(
+        65,
+    ),
+    address: None,
+    instr_word: 1007288385,
+}
+0x400010: Instruction {
+    rs: Some(
+        T2,
+    ),
+    rt: Some(
+        T2,
+    ),
+    rd: None,
+    op_code: Lb,
+    func_code: None,
+    shamt: None,
+    imm: Some(
+        49,
+    ),
+    address: None,
+    instr_word: 2169110577,
+}
+0x400014: Instruction {
+    rs: Some(
+        ZERO,
+    ),
+    rt: Some(
+        T3,
+    ),
+    rd: None,
+    op_code: Lui,
+    func_code: None,
+    shamt: None,
+    imm: Some(
+        65,
+    ),
+    address: None,
+    instr_word: 1007353921,
+}
+0x400018: Instruction {
+    rs: Some(
+        T3,
+    ),
+    rt: Some(
+        T3,
+    ),
+    rd: None,
+    op_code: Lb,
+    func_code: None,
+    shamt: None,
+    imm: Some(
+        50,
+    ),
+    address: None,
+    instr_word: 2171273266,
+}
+0x40001C: Instruction {
+    rs: Some(
+        ZERO,
+    ),
+    rt: Some(
+        T4,
+    ),
+    rd: None,
+    op_code: Lui,
+    func_code: None,
+    shamt: None,
+    imm: Some(
+        65,
+    ),
+    address: None,
+    instr_word: 1007419457,
+}
+0x400020: Instruction {
+    rs: Some(
+        T4,
+    ),
+    rt: Some(
+        T4,
+    ),
+    rd: None,
+    op_code: Lb,
+    func_code: None,
+    shamt: None,
+    imm: Some(
+        51,
+    ),
+    address: None,
+    instr_word: 2173435955,
+}
+0x400024: Instruction {
+    rs: Some(
+        ZERO,
+    ),
+    rt: Some(
+        T5,
+    ),
+    rd: None,
+    op_code: Lui,
+    func_code: None,
+    shamt: None,
+    imm: Some(
+        65,
+    ),
+    address: None,
+    instr_word: 1007484993,
+}
+0x400028: Instruction {
+    rs: Some(
+        T5,
+    ),
+    rt: Some(
+        T5,
+    ),
+    rd: None,
+    op_code: Lb,
+    func_code: None,
+    shamt: None,
+    imm: Some(
+        52,
+    ),
+    address: None,
+    instr_word: 2175598644,
+}
+0x40002C: Instruction {
+    rs: None,
+    rt: None,
+    rd: None,
+    op_code: RType,
+    func_code: None,
+    shamt: None,
+    imm: None,
+    address: None,
+    instr_word: 0,
+}
+0x400030: Instruction {
+    rs: None,
+    rt: None,
+    rd: None,
+    op_code: RType,
+    func_code: None,
+    shamt: None,
+    imm: None,
+    address: None,
+    instr_word: 3735928559,
+}
+Data
+0x:400034: 2882338816
+0x:400038: 3735928559
+0x:40003C: 0
+0x:400040: 0
+Cycle: 0
+Fetch: pc:0x400000
+instr word: 0x24080040
+Decode: instr: 0x0
+Decode: halt: false
+Instr word: 0x0
+Execute
+alu_val_1: 0x0 from ALU(Zero), alu_val_2: 0x0 from ALU(Zero)
+alu_op: ADD, alu_result: 0x0 to be written to Register XXX
+
+Writeback: FOUND NOP
+Cycle: 1
+Fetch: pc:0x400004
+instr word: 0x3C090041
+Decode: instr: 0x24080040
+Decode: halt: false
+Instr word: 0x24080040
+start_stalling false
+Execute
+alu_val_1: 0x0 from ALU(Zero), alu_val_2: 0x0 from ALU(Zero)
+alu_op: ADD, alu_result: 0x0 to be written to Register XXX
+
+Writeback: FOUND NOP
+Cycle: 2
+Fetch: pc:0x400008
+instr word: 0x81290030
+Decode: instr: 0x3C090041
+Decode: halt: false
+Instr word: 0x3C090041
+start_stalling false
+Execute
+alu_val_1: 0x0 from ALU(Reg1), alu_val_2: 0x40 from ALU(SignExtImm)
+alu_op: ADDU, alu_result: 0x40 to be written to Register Rt
+
+Writeback: FOUND NOP
+Cycle: 3
+Fetch: pc:0x40000C
+instr word: 0x3C0A0041
+Decode: instr: 0x81290030
+Decode: halt: false
+Instr word: 0x81290030
+start_stalling false
+Execute
+alu_val_1: 0x41 from ALU(SignExtImm), alu_val_2: 0x0 from ALU(Reg2)
+alu_op: LUI, alu_result: 0x410000 to be written to Register Rt
+
+Writeback: FOUND NOP
+Cycle: 4
+Fetch: pc:0x400010
+instr word: 0x814A0031
+Decode: instr: 0x3C0A0041
+Decode: halt: false
+Instr word: 0x3C0A0041
+start_stalling false
+Execute
+alu_val_1: 0x0 from ALU(Reg1), alu_val_2: 0x30 from ALU(SignExtImm)
+alu_op: ADD, alu_result: 0x30 to be written to Register Rt
+
+Cycle 4 Writeback to reg: T0 with value 0x40
+Cycle: 5
+Fetch: pc:0x400014
+instr word: 0x3C0B0041
+Decode: instr: 0x814A0031
+Decode: halt: false
+Instr word: 0x814A0031
+start_stalling false
+Execute
+alu_val_1: 0x41 from ALU(SignExtImm), alu_val_2: 0x0 from ALU(Reg2)
+alu_op: LUI, alu_result: 0x410000 to be written to Register Rt
+
+Memory: Reading memory at address: 0x400034
+Cycle 5 Writeback to reg: T1 with value 0x410000
+Cycle: 6
+Fetch: pc:0x400018
+instr word: 0x816B0032
+Decode: instr: 0x3C0B0041
+Decode: halt: false
+Instr word: 0x3C0B0041
+start_stalling false
+Execute
+alu_val_1: 0x0 from ALU(Reg1), alu_val_2: 0x31 from ALU(SignExtImm)
+alu_op: ADD, alu_result: 0x31 to be written to Register Rt
+
+Memory: Reading memory at address: 0x810004
+Cycle 6 Writeback to reg: T1 with value 0x0
+Cycle: 7
+Fetch: pc:0x40001C
+instr word: 0x3C0C0041
+Decode: instr: 0x816B0032
+Decode: halt: false
+Instr word: 0x816B0032
+start_stalling false
+Execute
+alu_val_1: 0x41 from ALU(SignExtImm), alu_val_2: 0x0 from ALU(Reg2)
+alu_op: LUI, alu_result: 0x410000 to be written to Register Rt
+
+Memory: Reading memory at address: 0x400035
+Cycle 7 Writeback to reg: T2 with value 0x410000
+Cycle: 8
+Fetch: pc:0x400020
+instr word: 0x818C0033
+Decode: instr: 0x3C0C0041
+Decode: halt: false
+Instr word: 0x3C0C0041
+start_stalling false
+Execute
+alu_val_1: 0x0 from ALU(Reg1), alu_val_2: 0x32 from ALU(SignExtImm)
+alu_op: ADD, alu_result: 0x32 to be written to Register Rt
+
+Memory: Reading memory at address: 0x810004
+Cycle 8 Writeback to reg: T2 with value 0x0
+Cycle: 9
+Fetch: pc:0x400024
+instr word: 0x3C0D0041
+Decode: instr: 0x818C0033
+Decode: halt: false
+Instr word: 0x818C0033
+start_stalling false
+Execute
+alu_val_1: 0x41 from ALU(SignExtImm), alu_val_2: 0x0 from ALU(Reg2)
+alu_op: LUI, alu_result: 0x410000 to be written to Register Rt
+
+Memory: Reading memory at address: 0x400036
+Cycle 9 Writeback to reg: T3 with value 0x410000
+Cycle: 10
+Fetch: pc:0x400028
+instr word: 0x81AD0034
+Decode: instr: 0x3C0D0041
+Decode: halt: false
+Instr word: 0x3C0D0041
+start_stalling false
+Execute
+alu_val_1: 0x0 from ALU(Reg1), alu_val_2: 0x33 from ALU(SignExtImm)
+alu_op: ADD, alu_result: 0x33 to be written to Register Rt
+
+Memory: Reading memory at address: 0x810004
+Cycle 10 Writeback to reg: T3 with value 0x0
+Cycle: 11
+Fetch: pc:0x40002C
+instr word: 0x0
+Decode: instr: 0x81AD0034
+Decode: halt: false
+Instr word: 0x81AD0034
+start_stalling false
+Execute
+alu_val_1: 0x41 from ALU(SignExtImm), alu_val_2: 0x0 from ALU(Reg2)
+alu_op: LUI, alu_result: 0x410000 to be written to Register Rt
+
+Memory: Reading memory at address: 0x400037
+Cycle 11 Writeback to reg: T4 with value 0x410000
+Cycle: 12
+Fetch: pc:0x400030
+instr word: 0xDEADBEEF
+Decode: instr: 0x0
+Decode: halt: false
+Instr word: 0x0
+Execute
+alu_val_1: 0x0 from ALU(Reg1), alu_val_2: 0x34 from ALU(SignExtImm)
+alu_op: ADD, alu_result: 0x34 to be written to Register Rt
+
+Memory: Reading memory at address: 0x810004
+Cycle 12 Writeback to reg: T4 with value 0x0
+Cycle: 13
+Fetch: pc:0x400034
+instr word: 0xABCD0000
+Decode: instr: 0xDEADBEEF
+Decode: halt: true
+Instr word: 0xDEADBEEF
+Decode: FOUND HALT INSTRUCTION
+Execute
+alu_val_1: 0x0 from ALU(Zero), alu_val_2: 0x0 from ALU(Zero)
+alu_op: ADD, alu_result: 0x0 to be written to Register XXX
+
+Memory: Reading memory at address: 0x400038
+Cycle 13 Writeback to reg: T5 with value 0x410000
+Cycle: 14
+Fetch: pc:0x400038
+instr word: 0xDEADBEEF
+Decode: instr: 0xABCD0000
+Decode: halt: false
+Instr word: 0xABCD0000
+start_stalling false
+Execute: FOUND HALT INSTRUCTION
+Cycle 14 Writeback to reg: T5 with value 0xEF
+Cycle: 15
+Fetch: pc:0x40003C
+instr word: 0x0
+Decode: instr: 0xDEADBEEF
+Decode: halt: true
+Instr word: 0xDEADBEEF
+Decode: FOUND HALT INSTRUCTION
+Execute
+alu_val_1: 0x410000 from ALU(Reg1), alu_val_2: 0x0 from ALU(SignExtImm)
+alu_op: ADD, alu_result: 0x410000 to be written to Register XXX
+
+Memory: FOUND HALT INSTRUCTION
+Writeback: FOUND NOP
+Cycle: 16
+Fetch: pc:0x400040
+instr word: 0x0
+Decode: instr: 0x0
+Decode: halt: false
+Instr word: 0x0
+Execute: FOUND HALT INSTRUCTION
+Writeback: FOUND HALT INSTRUCTION
+thread 'tests::test_lb' panicked at 'assertion failed: `(left == right)`
+  left: `0`,
+ right: `4294967211`: Failed on test: lb checking register: T1', tests/sim.rs:56:13
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+error: test failed, to rerun pass '--test sim'

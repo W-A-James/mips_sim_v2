@@ -41,16 +41,35 @@ fn complement_u64(v: u64) -> u64 {
 pub fn calculate(a: u32, b: u32, op: ALUOperation) -> Result<u32, ALUError> {
     use ALUOperation::*;
     match op {
-        ADD => {
+        ADD => { // TODO: Enable signed addition
+            let a_i32 = a as i32;
+            let b_i32 = b as i32;
+            let result = a_i32.overflowing_add(b_i32);
+            if result.1 {
+                Err(ALUError::OverflowError)
+            } else {
+                Ok(result.0 as u32)
+            }
+        }
+        ADDU => {
             let result = a.overflowing_add(b);
             if result.1 {
                 Err(ALUError::OverflowError)
             } else {
                 Ok(result.0)
             }
+        },
+        SUB => { // TODO: Enable signed subtraction
+            let a_i32 = a as i32;
+            let b_i32 = b as i32;
+            let result = a_i32.overflowing_sub(b_i32);
+            if result.1 {
+                Err(ALUError::OverflowError)
+            } else {
+                Ok(result.0 as u32)
+            }
         }
-        ADDU => Ok(a.wrapping_add(b)),
-        SUB => {
+        SUBU => {
             let result = a.overflowing_sub(b);
             if result.1 {
                 Err(ALUError::OverflowError)
@@ -58,7 +77,6 @@ pub fn calculate(a: u32, b: u32, op: ALUOperation) -> Result<u32, ALUError> {
                 Ok(result.0)
             }
         }
-        SUBU => Ok(a.wrapping_sub(b)),
         MUL => {
             let result = a.overflowing_mul(b);
             if result.1 {
@@ -183,24 +201,24 @@ mod tests {
 
     #[test]
     pub fn test_add_overflow() {
-        assert!(calculate(0xffff_ffff, 1, ALUOperation::ADD).is_err());
-        assert!(calculate(0xffff_fffe, 1, ALUOperation::ADD).is_ok());
+        assert!(calculate(std::i32::MIN as u32, 0xffff_ffff, ALUOperation::ADD).is_err());
+        assert!(calculate(0xffff_ffff, 1, ALUOperation::ADD).is_ok());
     }
 
     #[test]
     pub fn test_addu() {
-        assert!(calculate(0xffff_ffff, 1, ALUOperation::ADDU).is_ok());
+        assert!(calculate(0xffff_ffff, 1, ALUOperation::ADDU).is_err());
     }
 
     #[test]
     pub fn test_sub_overflow() {
-        assert!(calculate(0, 1, ALUOperation::SUB).is_err());
+        assert!(calculate(std::i32::MIN as u32, 1, ALUOperation::SUB).is_err());
         assert!(calculate(1, 1, ALUOperation::SUB).is_ok());
     }
 
     #[test]
     pub fn test_subu() {
-        assert!(calculate(0, 1, ALUOperation::SUBU).is_ok());
+        assert!(calculate(0, 1, ALUOperation::SUBU).is_err());
     }
 
     #[test]

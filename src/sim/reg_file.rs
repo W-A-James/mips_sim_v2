@@ -1,33 +1,19 @@
 use super::common::Register;
 use super::traits::{ClockedMap, Value};
-use std::collections::{HashMap, HashSet};
-
-#[cfg(not(test))]
-#[derive(Hash, Eq, PartialEq, Debug, Clone)]
-struct RegVal {
-    reg: Register,
-    value: u32,
-}
-
-#[cfg(test)]
-#[derive(Hash, Eq, PartialEq, Debug, Clone)]
-pub struct RegVal {
-    reg: Register,
-    value: u32,
-}
+use std::collections::HashMap;
 
 #[cfg(not(test))]
 #[derive(Debug, Clone)]
 pub struct RegFile {
     current_map: HashMap<Register, u32>,
-    write_buffer: HashSet<RegVal>,
+    write_buffer: HashMap<Register, u32>,
 }
 
 #[cfg(test)]
 #[derive(Debug, Clone)]
 pub struct RegFile {
     current_map: HashMap<Register, u32>,
-    pub write_buffer: HashSet<RegVal>,
+    pub write_buffer: HashMap<Register, u32>,
 }
 
 impl RegFile {
@@ -36,7 +22,7 @@ impl RegFile {
         for entry in Register::iter() {
             current_map.insert(entry, 0);
         }
-        let write_buffer = HashSet::new();
+        let write_buffer = HashMap::new();
 
         RegFile {
             current_map,
@@ -45,7 +31,7 @@ impl RegFile {
     }
 
     #[cfg(test)]
-    pub fn get_write_buffer(&self) -> HashSet<RegVal> {
+    pub fn get_write_buffer(&self) -> HashMap<Register, u32> {
         self.write_buffer.clone()
     }
 }
@@ -58,18 +44,18 @@ impl ClockedMap<Register, u32> for RegFile {
     }
 
     fn clock(&mut self) {
-        for reg_val in self.write_buffer.drain() {
-            match reg_val.reg {
+        for (r, v) in self.write_buffer.drain() {
+            match r {
                 Register::ZERO => {}
                 _ => {
-                    self.current_map.insert(reg_val.reg, reg_val.value).unwrap();
+                    self.current_map.insert(r, v).unwrap();
                 }
             }
         }
     }
 
     fn load(&mut self, field: Register, value: u32) {
-        self.write_buffer.insert(RegVal { reg: field, value });
+        self.write_buffer.insert(field, value);
     }
 
     fn clear_pending(&mut self) {

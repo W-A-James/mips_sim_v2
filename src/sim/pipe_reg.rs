@@ -2,7 +2,7 @@ use super::common;
 use super::common::{ALUOperation, ALUSrc, RegSrc};
 use super::traits::{ClockedMap, Field, Value};
 use lazy_static::lazy_static;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 #[derive(Hash, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PipeFieldName {
@@ -84,6 +84,8 @@ lazy_static! {
         m.insert(PcPlus4, PipeField::U32(0));
         m.insert(Reg1, PipeField::U32(0));
         m.insert(Reg2, PipeField::U32(0));
+        m.insert(Reg1Src, PipeField::RSrc(RegSrc::Rs));
+        m.insert(Reg2Src, PipeField::RSrc(RegSrc::Rt));
         m.insert(Muldivhi, PipeField::U32(0));
         m.insert(Muldivlo, PipeField::U32(0));
         m.insert(MuldivReqValid, PipeField::Bool(false));
@@ -95,13 +97,13 @@ lazy_static! {
         m.insert(WriteReg, PipeField::Bool(false));
         m.insert(ReadMem, PipeField::Bool(false));
         m.insert(WriteMem, PipeField::Bool(false));
-        m.insert(MemWidth, PipeField::U8(1));
+        m.insert(MemWidth, PipeField::U8(4));
         m.insert(MemSigned, PipeField::Bool(true));
         m.insert(MemData, PipeField::U32(0));
         m.insert(AluSrc1, PipeField::ALU(ALUSrc::Zero));
         m.insert(AluSrc2, PipeField::ALU(ALUSrc::Zero));
         m.insert(ALURes, PipeField::U32(0));
-        m.insert(AluToReg, PipeField::Bool(false));
+        m.insert(AluToReg, PipeField::Bool(true));
         m.insert(AluOp, PipeField::Op(ALUOperation::ADD));
         m.insert(RegDest, PipeField::Dest(common::RegDest::XXX));
         m.insert(RegToWrite, PipeField::U8(0));
@@ -135,24 +137,16 @@ lazy_static! {
         m.insert(SquashExecute, PipeField::Bool(false));
         m.insert(SquashMemory, PipeField::Bool(false));
         m.insert(SquashWriteback, PipeField::Bool(false));
-        m.insert(Reg1Src, PipeField::RSrc(RegSrc::Rs));
-        m.insert(Reg2Src, PipeField::RSrc(RegSrc::Rt));
 
         m
     };
-}
-
-#[derive(Hash, Debug, Clone, Copy, PartialEq, Eq)]
-pub struct PipeVal {
-    key: PipeFieldName,
-    value: PipeField,
 }
 
 #[derive(Debug, Clone)]
 pub struct PipeRegister {
     name: String,
     current_map: HashMap<PipeFieldName, PipeField>,
-    write_buffer: HashSet<PipeVal>,
+    write_buffer: HashMap<PipeFieldName, PipeField>,
 }
 
 impl PipeRegister {
@@ -162,7 +156,7 @@ impl PipeRegister {
         for f in fields {
             current_map.insert(f, *DEFAULT_VALUES.get(&f).unwrap());
         }
-        let write_buffer = HashSet::new();
+        let write_buffer = HashMap::new();
         PipeRegister {
             name: String::from(name),
             current_map,
@@ -184,7 +178,7 @@ impl Value for PipeField {}
 impl ClockedMap<PipeFieldName, PipeField> for PipeRegister {
     fn load(&mut self, field: PipeFieldName, value: PipeField) {
         if self.current_map.contains_key(&field) {
-            self.write_buffer.insert(PipeVal { key: field, value });
+            self.write_buffer.insert(field, value);
         } else {
             // NOTE:
             // Silently ignore here?
@@ -196,10 +190,8 @@ impl ClockedMap<PipeFieldName, PipeField> for PipeRegister {
     }
 
     fn clock(&mut self) {
-        for pipe_val in self.write_buffer.drain() {
-            self.current_map
-                .insert(pipe_val.key, pipe_val.value)
-                .unwrap();
+        for (k, v) in self.write_buffer.drain() {
+            self.current_map.insert(k, v).unwrap();
         }
     }
 
@@ -208,6 +200,6 @@ impl ClockedMap<PipeFieldName, PipeField> for PipeRegister {
     }
 
     fn clear_pending(&mut self) {
-        self.write_buffer.drain();
+        self.write_buffer.clear();
     }
 }

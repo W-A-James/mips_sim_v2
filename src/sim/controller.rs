@@ -60,6 +60,8 @@ impl Controller {
             set_signal_value!(self, WriteMem, PipeField::Bool(false));
             set_signal_value!(self, Halt, PipeField::Bool(false));
             set_signal_value!(self, IsNop, PipeField::Bool(true));
+            set_signal_value!(self, IsBranch, PipeField::Bool(false));
+            set_signal_value!(self, IsJump, PipeField::Bool(false));
         } else if instr.is_halt() {
             set_signal_value!(self, Halt, PipeField::Bool(true));
             set_signal_value!(self, IsNop, PipeField::Bool(false));
@@ -228,7 +230,7 @@ impl Controller {
                             }
                             FuncCode::Mthi => {
                                 set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::Rs));
-                                set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::XXX));
+                                set_signal_value!(self, Reg2Src, PipeField::RSrc(RegSrc::XXX));
 
                                 set_signal_value!(
                                     self,
@@ -237,11 +239,11 @@ impl Controller {
                                 );
                                 set_signal_value!(self, AluOp, PipeField::Op(ALUOperation::ADD));
                                 set_signal_value!(self, AluSrc1, PipeField::ALU(ALUSrc::Reg1));
-                                set_signal_value!(self, AluSrc1, PipeField::ALU(ALUSrc::Zero));
+                                set_signal_value!(self, AluSrc2, PipeField::ALU(ALUSrc::Zero));
                             }
                             FuncCode::Mtlo => {
                                 set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::Rs));
-                                set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::XXX));
+                                set_signal_value!(self, Reg2Src, PipeField::RSrc(RegSrc::XXX));
 
                                 set_signal_value!(
                                     self,
@@ -250,7 +252,7 @@ impl Controller {
                                 );
                                 set_signal_value!(self, AluOp, PipeField::Op(ALUOperation::ADD));
                                 set_signal_value!(self, AluSrc1, PipeField::ALU(ALUSrc::Reg1));
-                                set_signal_value!(self, AluSrc1, PipeField::ALU(ALUSrc::Zero));
+                                set_signal_value!(self, AluSrc2, PipeField::ALU(ALUSrc::Zero));
                             }
                             FuncCode::Movn => {
                                 set_signal_value!(self, AluOp, PipeField::Op(ALUOperation::ADD));
@@ -281,6 +283,14 @@ impl Controller {
                     set_signal_value!(self, RegDest, PipeField::Dest(RegDest::Rt));
                     set_signal_value!(self, WriteReg, PipeField::Bool(true));
                     set_signal_value!(self, AluToReg, PipeField::Bool(true));
+
+                    set_signal_value!(self, MuldivReqValid, PipeField::Bool(false));
+                    set_signal_value!(self, ReadMem, PipeField::Bool(false));
+                    set_signal_value!(self, WriteMem, PipeField::Bool(false));
+                    set_signal_value!(self, Halt, PipeField::Bool(false));
+                    set_signal_value!(self, IsNop, PipeField::Bool(false));
+                    set_signal_value!(self, IsBranch, PipeField::Bool(false));
+                    set_signal_value!(self, IsJump, PipeField::Bool(false));
                 }
                 OpCode::Addiu => {
                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::Rs));
@@ -293,6 +303,14 @@ impl Controller {
                     set_signal_value!(self, RegDest, PipeField::Dest(RegDest::Rt));
                     set_signal_value!(self, WriteReg, PipeField::Bool(true));
                     set_signal_value!(self, AluToReg, PipeField::Bool(true));
+
+                    set_signal_value!(self, MuldivReqValid, PipeField::Bool(false));
+                    set_signal_value!(self, ReadMem, PipeField::Bool(false));
+                    set_signal_value!(self, WriteMem, PipeField::Bool(false));
+                    set_signal_value!(self, Halt, PipeField::Bool(false));
+                    set_signal_value!(self, IsNop, PipeField::Bool(false));
+                    set_signal_value!(self, IsBranch, PipeField::Bool(false));
+                    set_signal_value!(self, IsJump, PipeField::Bool(false));
                 }
                 OpCode::Andi => {
                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::Rs));
@@ -306,6 +324,14 @@ impl Controller {
 
                     set_signal_value!(self, WriteReg, PipeField::Bool(true));
                     set_signal_value!(self, AluToReg, PipeField::Bool(true));
+
+                    set_signal_value!(self, MuldivReqValid, PipeField::Bool(false));
+                    set_signal_value!(self, ReadMem, PipeField::Bool(false));
+                    set_signal_value!(self, WriteMem, PipeField::Bool(false));
+                    set_signal_value!(self, Halt, PipeField::Bool(false));
+                    set_signal_value!(self, IsNop, PipeField::Bool(false));
+                    set_signal_value!(self, IsBranch, PipeField::Bool(false));
+                    set_signal_value!(self, IsJump, PipeField::Bool(false));
                 }
                 OpCode::Mul => {
                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::Rs));
@@ -324,6 +350,14 @@ impl Controller {
                                     set_signal_value!(self, AluSrc2, PipeField::ALU(ALUSrc::Reg2));
 
                                     set_signal_value!(self, RegDest, PipeField::Dest(RegDest::Rd));
+
+                                    set_signal_value!(self, MuldivReqValid, PipeField::Bool(false));
+                                    set_signal_value!(self, ReadMem, PipeField::Bool(false));
+                                    set_signal_value!(self, WriteMem, PipeField::Bool(false));
+                                    set_signal_value!(self, Halt, PipeField::Bool(false));
+                                    set_signal_value!(self, IsNop, PipeField::Bool(false));
+                                    set_signal_value!(self, IsBranch, PipeField::Bool(false));
+                                    set_signal_value!(self, IsJump, PipeField::Bool(false));
                                 }
                                 // Clo
                                 FuncCode::Add => {
@@ -336,6 +370,14 @@ impl Controller {
                                     set_signal_value!(self, AluSrc2, PipeField::ALU(ALUSrc::Zero));
 
                                     set_signal_value!(self, RegDest, PipeField::Dest(RegDest::Rd));
+                                    set_signal_value!(self, MuldivReqValid, PipeField::Bool(false));
+                                    set_signal_value!(self, WriteReg, PipeField::Bool(true));
+                                    set_signal_value!(self, ReadMem, PipeField::Bool(false));
+                                    set_signal_value!(self, WriteMem, PipeField::Bool(false));
+                                    set_signal_value!(self, Halt, PipeField::Bool(false));
+                                    set_signal_value!(self, IsNop, PipeField::Bool(false));
+                                    set_signal_value!(self, IsBranch, PipeField::Bool(false));
+                                    set_signal_value!(self, IsJump, PipeField::Bool(false));
                                 }
                                 // Clz
                                 FuncCode::Addu => {
@@ -348,6 +390,14 @@ impl Controller {
                                     set_signal_value!(self, AluSrc2, PipeField::ALU(ALUSrc::Zero));
 
                                     set_signal_value!(self, RegDest, PipeField::Dest(RegDest::Rd));
+                                    set_signal_value!(self, MuldivReqValid, PipeField::Bool(false));
+                                    set_signal_value!(self, WriteReg, PipeField::Bool(true));
+                                    set_signal_value!(self, ReadMem, PipeField::Bool(false));
+                                    set_signal_value!(self, WriteMem, PipeField::Bool(false));
+                                    set_signal_value!(self, Halt, PipeField::Bool(false));
+                                    set_signal_value!(self, IsNop, PipeField::Bool(false));
+                                    set_signal_value!(self, IsBranch, PipeField::Bool(false));
+                                    set_signal_value!(self, IsJump, PipeField::Bool(false));
                                 }
 
                                 _ => unreachable!(),
@@ -364,11 +414,19 @@ impl Controller {
 
                     set_signal_value!(self, AluOp, PipeField::Op(ALUOperation::OR));
                     set_signal_value!(self, AluSrc1, PipeField::ALU(ALUSrc::Reg1));
-                    set_signal_value!(self, AluSrc2, PipeField::ALU(ALUSrc::SignExtImm));
+                    set_signal_value!(self, AluSrc2, PipeField::ALU(ALUSrc::ZeroExtImm));
 
                     set_signal_value!(self, RegDest, PipeField::Dest(RegDest::Rt));
                     set_signal_value!(self, WriteReg, PipeField::Bool(true));
                     set_signal_value!(self, AluToReg, PipeField::Bool(true));
+
+                    set_signal_value!(self, MuldivReqValid, PipeField::Bool(false));
+                    set_signal_value!(self, ReadMem, PipeField::Bool(false));
+                    set_signal_value!(self, WriteMem, PipeField::Bool(false));
+                    set_signal_value!(self, Halt, PipeField::Bool(false));
+                    set_signal_value!(self, IsNop, PipeField::Bool(false));
+                    set_signal_value!(self, IsBranch, PipeField::Bool(false));
+                    set_signal_value!(self, IsJump, PipeField::Bool(false));
                 }
                 OpCode::Xori => {
                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::Rs));
@@ -376,12 +434,20 @@ impl Controller {
 
                     set_signal_value!(self, AluOp, PipeField::Op(ALUOperation::XOR));
                     set_signal_value!(self, AluSrc1, PipeField::ALU(ALUSrc::Reg1));
-                    set_signal_value!(self, AluSrc2, PipeField::ALU(ALUSrc::SignExtImm));
+                    set_signal_value!(self, AluSrc2, PipeField::ALU(ALUSrc::ZeroExtImm));
 
                     set_signal_value!(self, WriteReg, PipeField::Bool(true));
                     set_signal_value!(self, AluToReg, PipeField::Bool(true));
 
                     set_signal_value!(self, RegDest, PipeField::Dest(RegDest::Rt));
+
+                    set_signal_value!(self, MuldivReqValid, PipeField::Bool(false));
+                    set_signal_value!(self, ReadMem, PipeField::Bool(false));
+                    set_signal_value!(self, WriteMem, PipeField::Bool(false));
+                    set_signal_value!(self, Halt, PipeField::Bool(false));
+                    set_signal_value!(self, IsNop, PipeField::Bool(false));
+                    set_signal_value!(self, IsBranch, PipeField::Bool(false));
+                    set_signal_value!(self, IsJump, PipeField::Bool(false));
                 }
                 OpCode::Lui => {
                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::XXX));
@@ -395,6 +461,14 @@ impl Controller {
                     set_signal_value!(self, AluToReg, PipeField::Bool(true));
 
                     set_signal_value!(self, RegDest, PipeField::Dest(RegDest::Rt));
+
+                    set_signal_value!(self, MuldivReqValid, PipeField::Bool(false));
+                    set_signal_value!(self, ReadMem, PipeField::Bool(false));
+                    set_signal_value!(self, WriteMem, PipeField::Bool(false));
+                    set_signal_value!(self, Halt, PipeField::Bool(false));
+                    set_signal_value!(self, IsNop, PipeField::Bool(false));
+                    set_signal_value!(self, IsBranch, PipeField::Bool(false));
+                    set_signal_value!(self, IsJump, PipeField::Bool(false));
                 }
                 OpCode::Slti => {
                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::Rs));
@@ -408,6 +482,14 @@ impl Controller {
                     set_signal_value!(self, AluToReg, PipeField::Bool(true));
 
                     set_signal_value!(self, RegDest, PipeField::Dest(RegDest::Rt));
+
+                    set_signal_value!(self, MuldivReqValid, PipeField::Bool(false));
+                    set_signal_value!(self, ReadMem, PipeField::Bool(false));
+                    set_signal_value!(self, WriteMem, PipeField::Bool(false));
+                    set_signal_value!(self, Halt, PipeField::Bool(false));
+                    set_signal_value!(self, IsNop, PipeField::Bool(false));
+                    set_signal_value!(self, IsBranch, PipeField::Bool(false));
+                    set_signal_value!(self, IsJump, PipeField::Bool(false));
                 }
                 OpCode::Sltiu => {
                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::Rs));
@@ -421,8 +503,17 @@ impl Controller {
                     set_signal_value!(self, AluToReg, PipeField::Bool(true));
 
                     set_signal_value!(self, RegDest, PipeField::Dest(RegDest::Rt));
+
+                    set_signal_value!(self, MuldivReqValid, PipeField::Bool(false));
+                    set_signal_value!(self, ReadMem, PipeField::Bool(false));
+                    set_signal_value!(self, WriteMem, PipeField::Bool(false));
+                    set_signal_value!(self, Halt, PipeField::Bool(false));
+                    set_signal_value!(self, IsNop, PipeField::Bool(false));
+                    set_signal_value!(self, IsBranch, PipeField::Bool(false));
+                    set_signal_value!(self, IsJump, PipeField::Bool(false));
                 }
                 OpCode::Beq => {
+                    // TODO: add signals to disable unwanted behaviour
                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::Rs));
                     set_signal_value!(self, Reg2Src, PipeField::RSrc(RegSrc::Rt));
 
@@ -591,6 +682,15 @@ impl Controller {
 
                     set_signal_value!(self, WriteReg, PipeField::Bool(false));
                     set_signal_value!(self, IsJump, PipeField::Bool(true));
+
+                    set_signal_value!(self, RegDest, PipeField::Dest(RegDest::XXX));
+                    set_signal_value!(self, MuldivReqValid, PipeField::Bool(false));
+                    set_signal_value!(self, WriteReg, PipeField::Bool(false));
+                    set_signal_value!(self, ReadMem, PipeField::Bool(false));
+                    set_signal_value!(self, WriteMem, PipeField::Bool(false));
+                    set_signal_value!(self, Halt, PipeField::Bool(false));
+                    set_signal_value!(self, IsNop, PipeField::Bool(false));
+                    set_signal_value!(self, IsBranch, PipeField::Bool(false));
                 }
                 OpCode::Jal => {
                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::XXX));
@@ -604,6 +704,13 @@ impl Controller {
 
                     set_signal_value!(self, WriteReg, PipeField::Bool(true));
                     set_signal_value!(self, IsJump, PipeField::Bool(true));
+
+                    set_signal_value!(self, MuldivReqValid, PipeField::Bool(false));
+                    set_signal_value!(self, ReadMem, PipeField::Bool(false));
+                    set_signal_value!(self, WriteMem, PipeField::Bool(false));
+                    set_signal_value!(self, Halt, PipeField::Bool(false));
+                    set_signal_value!(self, IsNop, PipeField::Bool(false));
+                    set_signal_value!(self, IsBranch, PipeField::Bool(false));
                 }
                 OpCode::Lb => {
                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::XXX));
@@ -619,6 +726,11 @@ impl Controller {
                     set_signal_value!(self, AluToReg, PipeField::Bool(false));
                     set_signal_value!(self, MemWidth, PipeField::U8(1));
                     set_signal_value!(self, MemSigned, PipeField::Bool(true));
+                    set_signal_value!(self, MuldivReqValid, PipeField::Bool(false));
+                    set_signal_value!(self, Halt, PipeField::Bool(false));
+                    set_signal_value!(self, IsNop, PipeField::Bool(false));
+                    set_signal_value!(self, IsBranch, PipeField::Bool(false));
+                    set_signal_value!(self, IsJump, PipeField::Bool(false));
                 }
                 OpCode::Lbu => {
                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::XXX));
@@ -634,6 +746,11 @@ impl Controller {
                     set_signal_value!(self, AluToReg, PipeField::Bool(false));
                     set_signal_value!(self, MemWidth, PipeField::U8(1));
                     set_signal_value!(self, MemSigned, PipeField::Bool(false));
+                    set_signal_value!(self, MuldivReqValid, PipeField::Bool(false));
+                    set_signal_value!(self, Halt, PipeField::Bool(false));
+                    set_signal_value!(self, IsNop, PipeField::Bool(false));
+                    set_signal_value!(self, IsBranch, PipeField::Bool(false));
+                    set_signal_value!(self, IsJump, PipeField::Bool(false));
                 }
                 OpCode::Lh => {
                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::XXX));
@@ -649,6 +766,11 @@ impl Controller {
                     set_signal_value!(self, AluToReg, PipeField::Bool(false));
                     set_signal_value!(self, MemWidth, PipeField::U8(2));
                     set_signal_value!(self, MemSigned, PipeField::Bool(true));
+                    set_signal_value!(self, MuldivReqValid, PipeField::Bool(false));
+                    set_signal_value!(self, Halt, PipeField::Bool(false));
+                    set_signal_value!(self, IsNop, PipeField::Bool(false));
+                    set_signal_value!(self, IsBranch, PipeField::Bool(false));
+                    set_signal_value!(self, IsJump, PipeField::Bool(false));
                 }
                 OpCode::Lhu => {
                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::XXX));
@@ -664,6 +786,11 @@ impl Controller {
                     set_signal_value!(self, AluToReg, PipeField::Bool(false));
                     set_signal_value!(self, MemWidth, PipeField::U8(2));
                     set_signal_value!(self, MemSigned, PipeField::Bool(false));
+                    set_signal_value!(self, MuldivReqValid, PipeField::Bool(false));
+                    set_signal_value!(self, Halt, PipeField::Bool(false));
+                    set_signal_value!(self, IsNop, PipeField::Bool(false));
+                    set_signal_value!(self, IsBranch, PipeField::Bool(false));
+                    set_signal_value!(self, IsJump, PipeField::Bool(false));
                 }
                 OpCode::Lw => {
                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::XXX));
@@ -679,6 +806,11 @@ impl Controller {
                     set_signal_value!(self, AluToReg, PipeField::Bool(false));
                     set_signal_value!(self, MemWidth, PipeField::U8(4));
                     set_signal_value!(self, MemSigned, PipeField::Bool(true));
+                    set_signal_value!(self, MuldivReqValid, PipeField::Bool(false));
+                    set_signal_value!(self, Halt, PipeField::Bool(false));
+                    set_signal_value!(self, IsNop, PipeField::Bool(false));
+                    set_signal_value!(self, IsBranch, PipeField::Bool(false));
+                    set_signal_value!(self, IsJump, PipeField::Bool(false));
                 }
                 OpCode::Lwl => {
                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::XXX));
@@ -701,6 +833,12 @@ impl Controller {
                     set_signal_value!(self, AluSrc2, PipeField::ALU(ALUSrc::SignExtImm));
                     set_signal_value!(self, ReadMem, PipeField::Bool(true));
                     set_signal_value!(self, AluToReg, PipeField::Bool(false));
+
+                    set_signal_value!(self, MuldivReqValid, PipeField::Bool(false));
+                    set_signal_value!(self, Halt, PipeField::Bool(false));
+                    set_signal_value!(self, IsNop, PipeField::Bool(false));
+                    set_signal_value!(self, IsBranch, PipeField::Bool(false));
+                    set_signal_value!(self, IsJump, PipeField::Bool(false));
                 }
                 OpCode::Ll => {
                     todo!();
@@ -717,6 +855,13 @@ impl Controller {
                     set_signal_value!(self, WriteMem, PipeField::Bool(true));
                     set_signal_value!(self, AluToReg, PipeField::Bool(false));
                     set_signal_value!(self, MemWidth, PipeField::U8(1));
+
+                    set_signal_value!(self, WriteReg, PipeField::Bool(false));
+                    set_signal_value!(self, MuldivReqValid, PipeField::Bool(false));
+                    set_signal_value!(self, Halt, PipeField::Bool(false));
+                    set_signal_value!(self, IsNop, PipeField::Bool(false));
+                    set_signal_value!(self, IsBranch, PipeField::Bool(false));
+                    set_signal_value!(self, IsJump, PipeField::Bool(false));
                 }
                 OpCode::Sh => {
                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::Rt));
@@ -730,6 +875,12 @@ impl Controller {
                     set_signal_value!(self, WriteMem, PipeField::Bool(true));
                     set_signal_value!(self, AluToReg, PipeField::Bool(false));
                     set_signal_value!(self, MemWidth, PipeField::U8(2));
+                    set_signal_value!(self, WriteReg, PipeField::Bool(false));
+                    set_signal_value!(self, MuldivReqValid, PipeField::Bool(false));
+                    set_signal_value!(self, Halt, PipeField::Bool(false));
+                    set_signal_value!(self, IsNop, PipeField::Bool(false));
+                    set_signal_value!(self, IsBranch, PipeField::Bool(false));
+                    set_signal_value!(self, IsJump, PipeField::Bool(false));
                 }
                 OpCode::Sw => {
                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::Rt));
@@ -743,6 +894,13 @@ impl Controller {
                     set_signal_value!(self, WriteMem, PipeField::Bool(true));
                     set_signal_value!(self, AluToReg, PipeField::Bool(false));
                     set_signal_value!(self, MemWidth, PipeField::U8(4));
+
+                    set_signal_value!(self, WriteReg, PipeField::Bool(false));
+                    set_signal_value!(self, MuldivReqValid, PipeField::Bool(false));
+                    set_signal_value!(self, Halt, PipeField::Bool(false));
+                    set_signal_value!(self, IsNop, PipeField::Bool(false));
+                    set_signal_value!(self, IsBranch, PipeField::Bool(false));
+                    set_signal_value!(self, IsJump, PipeField::Bool(false));
                 }
                 OpCode::Swl => {
                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::Rt));
@@ -753,6 +911,11 @@ impl Controller {
                     set_signal_value!(self, AluSrc1, PipeField::ALU(ALUSrc::Reg1));
                     set_signal_value!(self, AluSrc2, PipeField::ALU(ALUSrc::SignExtImm));
                     set_signal_value!(self, WriteMem, PipeField::Bool(true));
+                    set_signal_value!(self, MuldivReqValid, PipeField::Bool(false));
+                    set_signal_value!(self, Halt, PipeField::Bool(false));
+                    set_signal_value!(self, IsNop, PipeField::Bool(false));
+                    set_signal_value!(self, IsBranch, PipeField::Bool(false));
+                    set_signal_value!(self, IsJump, PipeField::Bool(false));
                 }
                 OpCode::Swr => {
                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::Rt));
