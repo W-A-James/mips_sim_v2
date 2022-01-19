@@ -33,6 +33,7 @@ pub struct Sim {
     bad_v_addr: pipe_reg::PipeRegister,
     controller: controller::Controller,
     memory: mem::Memory,
+    memory_section_offset: u32,
 
     cycles: u64,
 }
@@ -188,6 +189,7 @@ impl Sim {
             memory,
             reg_file,
             halt,
+            memory_section_offset: 0,
             cycles: 0u64,
         };
 
@@ -230,7 +232,7 @@ impl Sim {
             mem_index = mem_index + 4;
         }
 
-        self.reg_file.load(Register::GP, TEXT_START + 4);
+        self.memory_section_offset = TEXT_START + 4;
 
         eprintln!("Data");
         for v in data {
@@ -459,7 +461,7 @@ impl Sim {
                     eprintln!("Instr word: 0x{:X}", instruction.get_instr_word());
                     self.controller.update_state(&instruction);
                     for (field, value) in self.controller.get_state_vec() {
-                        // Load default controller values
+                        // Load controller values
                         self.id_ex_reg.load(field, value);
                     }
 
@@ -491,7 +493,7 @@ impl Sim {
                         || self.stalling_unit.check_write_in_flight(r2);
                     eprintln!("start_stalling {}", start_stalling);
 
-                    // If fetch was stalling and we are no longer stalling, run fetch_stage again
+                    // If fetch was stalling previously and we are no longer stalling, run fetch_stage again
                     match self.stalling_unit.read(PipeFieldName::StallFetch) {
                         PipeField::Bool(true) => {
                             if !start_stalling {
@@ -722,11 +724,6 @@ impl Sim {
                 }
                 Err(e) => panic!("{:#?}", e),
             }
-
-            // if write_mem | read_mem:
-            //      check if source registers have a pending write
-            //
-            //
         }
     }
 
@@ -833,7 +830,7 @@ impl Sim {
                 }
             };
             eprintln!(
-                "Execute\nalu_val_1: 0x{:X} from {:?}, alu_val_2: 0x{:X} from {:?}\nalu_op: {:?}, alu_result: 0x{:X} to be written to Register {:?}\n",
+                "Execute\nalu_val_1: 0x{:X} from {:?}, alu_val_2: 0x{:X} from {:?}\nalu_op: {:?}, alu_result: 0x{:X} to be written to Register {:?}",
                 alu_src_1,
                 self.id_ex_reg.read(PipeFieldName::AluSrc1),
                 alu_src_2,
@@ -996,7 +993,8 @@ impl Sim {
                 _ => panic!(),
             };
 
-            let address = alu_res + self.reg_file.read(Register::GP);
+            let address =
+                alu::calculate(alu_res, self.memory_section_offset, ALUOperation::ADD).unwrap();
             if read_mem {
                 eprintln!("Memory: Reading memory at address: 0x{:X}", address);
                 let mem_val = self.memory.read(address);

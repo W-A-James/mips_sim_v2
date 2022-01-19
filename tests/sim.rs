@@ -88,7 +88,7 @@ mod tests {
     build_test! {addiu, vec![(V0, 5), (V1, 5)]}
     build_test! {add, vec![(T0, 70), (T1, 130), (T3, 0xFFFF_0041), (T4, 0xFFFF_0005)]}
     build_test! {and, vec![(T2, 0), (T3, 0), (T4, 0), (T5, 1)]}
-    build_test! {andi, vec![(T1, 0x8000_0000), (T2, 0), (T3, 0), (T4, 0), (T5, 1), (T6, 0x8000_0000)]}
+    build_test! {andi, vec![(T1, 0x8000_0000), (T2, 0), (T3, 0), (T4, 0), (T5, 1), (T6, 0x0000_0000)]}
     // NOTE:
     // Ignoring CLO and CLZ since these two are not supported in the R2000 architecture (according
     // to the compiler)
