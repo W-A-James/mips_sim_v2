@@ -53,6 +53,7 @@ mod tests {
 
         let sim_state = sim.get_state();
         eprintln!("Registers:\n{:#?}", sim_state.reg_file);
+        eprintln!("Memory:\n{:#?}", sim_state.memory);
         for (r, v) in check_list {
             assert_eq!(
                 sim_state.reg_file.read(r),
@@ -276,11 +277,20 @@ mod tests {
 
     build_test! {lwr, vec![], ignore}
 
-    build_test! {sb, vec![], ignore}
+    build_test! {sb, vec![
+        (T0, 64),
+        (T1, 64),
+    ]}
 
-    build_test! {sh, vec![], ignore}
+    build_test! {sh, vec![
+        (T0, 0xabff),
+        (T1, 0xabff)
+    ]}
 
-    build_test! {sw, vec![], ignore}
+    build_test! {sw, vec![
+        (T0, 0xAAAA_BBBB),
+        (T1, 0xAAAA_BBBB)
+    ]}
 
     build_test! {swl, vec![], ignore}
 

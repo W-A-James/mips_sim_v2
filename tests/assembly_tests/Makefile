@@ -36,7 +36,10 @@ rout_files = addi.rout \
 			test_raw_dep.rout \
 			xori.rout \
 			xor.rout \
-			mtlo_mthi.rout\
+			mtlo_mthi.rout \
+			sb.rout \
+			sh.rout \
+			sw.rout \
 			#clo.rout\
 
 rdata_files = addi.rdata \
@@ -78,6 +81,9 @@ rdata_files = addi.rdata \
 			xori.rdata \
 			xor.rdata \
 			mtlo_mthi.rdata \
+			sb.rdata \
+			sh.rdata \
+			sw.rdata \
 			#clo.rdata\
 
 cc = mips-img-linux-gnu-gcc
@@ -86,7 +92,7 @@ ld = mips-img-linux-gnu-ld
 read_elf = mips-img-linux-gnu-readelf
 as_flags = -march=r2000 -g --no-trap -msoft-float
 cc_flags = -march=r2000 -mfp32 -mno-check-zero-division -mno-llsc -mcompact-branches=never -fno-delayed-branch -Og -g -c
-ld_flags = -nolibc -nostdlib -nodefaultlibs -static --Ttext 0x400000
+ld_flags = -nolibc -nostdlib -nodefaultlibs -static --Ttext 0x400000 --no-omagic --architecture r2000
 rout = ./compile_to_rout
 objdump = mips-img-linux-gnu-objdump
 

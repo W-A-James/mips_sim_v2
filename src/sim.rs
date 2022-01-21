@@ -533,7 +533,7 @@ impl Sim {
                         self.pc
                             .load(PipeFieldName::PC, self.pc.read(PipeFieldName::PC));
                         insert_bubble!(self, DECODE);
-                        eprintln!("{:#?}", self.id_ex_reg);
+                        //eprintln!("{:#?}", self.id_ex_reg);
                         return;
                     }
                     // TODO: What should happen when we recover from a stall?
@@ -682,10 +682,8 @@ impl Sim {
                     self.if_id_reg
                         .pass_through(&mut self.id_ex_reg, PipeFieldName::PcPlus4);
                     // SignExtImm
-                    self.id_ex_reg.load(
-                        PipeFieldName::SignExtImm,
-                        PipeField::U32(sign_ext_imm),
-                    );
+                    self.id_ex_reg
+                        .load(PipeFieldName::SignExtImm, PipeField::U32(sign_ext_imm));
                     // Rt
                     self.id_ex_reg.load(
                         PipeFieldName::Rt,
@@ -994,6 +992,7 @@ impl Sim {
                 self.mem_wb_reg
                     .load(PipeFieldName::MemData, PipeField::U32(mem_val));
             } else if write_mem {
+                eprintln!("Start writing data to address: 0x{:X}", address);
                 let reg_2_data = match self.ex_mem_reg.read(PipeFieldName::Reg2) {
                     PipeField::U32(d) => d,
                     _ => panic!(),
@@ -1003,11 +1002,10 @@ impl Sim {
                 match rem {
                     0 => {
                         let mut input_mask = 0u32;
-                        let mut output_mask = 0u32;
                         for _ in 0..mem_width {
                             input_mask = (input_mask << 8) | 0xFF;
-                            output_mask = (output_mask | 0xFF00_0000) >> 8;
                         }
+                        let output_mask = !input_mask;
 
                         let lower_bytes = (input_mask & reg_2_data) << ((4 - mem_width) * 8);
                         let current_mem_val = self.memory.read(address);
@@ -1015,6 +1013,7 @@ impl Sim {
                         self.memory.load(address, output_val);
                     }
                     rem => {
+                        // FIXME
                         if mem_width as u32 > rem {
                             let left_mem_val = self.memory.read(address - rem);
                             let right_mem_val = self.memory.read(address - rem + 4);
@@ -1033,6 +1032,13 @@ impl Sim {
                             let left_val_to_write = (left_mem_val & !left_mask) | upper_bytes;
                             let right_val_to_write = (right_mem_val & !right_mask) | lower_bytes;
 
+                            eprintln!(
+                                "Writing '0x{:X}' to location: 0x{:X} and '0x{:X} to location '0x{:X}'",
+                                left_val_to_write,
+                                address - rem,
+                                right_val_to_write,
+                                address - rem + 4
+                            );
                             self.memory.load(address - rem, left_val_to_write);
                             self.memory.load(address - rem + 4, right_val_to_write);
                         } else {
@@ -1044,7 +1050,13 @@ impl Sim {
                             let val = reg_2_data << ((4 - rem) * 8);
                             mask = mask << ((4 - rem) * 8);
 
-                            let output_val = (current_mem_val & !mask) | (val & mask);
+                            let output_val = (current_mem_val & !mask)
+                                | ((val >> (rem * 8)) & mask) >> (rem * 8);
+                            eprintln!(
+                                "Writing '0x{:X}' to location: 0x{:X}",
+                                output_val,
+                                address - rem
+                            );
                             self.memory.load(address - rem, output_val);
                         }
                     }
@@ -2826,7 +2838,7 @@ mod tests {
                 (ReadMem, PipeField::Bool(false)),
                 (WriteMem, PipeField::Bool(true)),
                 (WriteReg, PipeField::Bool(false)),
-                (RegDest, PipeField::Dest(common::RegDest::Rt)),
+                (RegDest, PipeField::Dest(common::RegDest::XXX)),
                 (AluOp, PipeField::Op(ALUOperation::ADD)),
             ],
         );
