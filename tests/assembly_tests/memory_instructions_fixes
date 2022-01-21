@@ -1,0 +1,6 @@
+TODO:
+
+The memory instructions currently do not properly deal with byte-level addressing
+correctly
+
+Check the offsets added/subtracted when accessing a non-word aligned address

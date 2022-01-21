@@ -52,6 +52,7 @@ mod tests {
         sim.step_to_halt();
 
         let sim_state = sim.get_state();
+        eprintln!("Registers:\n{:#?}", sim_state.reg_file);
         for (r, v) in check_list {
             assert_eq!(
                 sim_state.reg_file.read(r),

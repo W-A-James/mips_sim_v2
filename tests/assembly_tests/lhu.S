@@ -1,11 +1,15 @@
 .text
-li		$t0, 0
-lhu		$t1, 0($t0)
-lhu		$t2, 1($t0)
-lhu		$t3, 2($t0)
-lhu		$t4, 3($t0)
-lhu		$t5, 4($t0)
+lhu		$t1, d1
+lhu		$t2, d1 + 1
+lhu		$t3, d1 + 2
+lhu		$t4, d1 + 3
+lhu		$t5, d2
+nop
+nop
+nop
+nop
+nop
 
 .data
-.word 0xabcd0000
-.word 0xdeadbeef
+d1: .word 0xabcd0000
+d2: .word 0xdeadbeef

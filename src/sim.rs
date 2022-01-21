@@ -154,6 +154,7 @@ impl Sim {
                     PipeFieldName::MuldivReqValid,
                     PipeFieldName::MemData,
                     PipeFieldName::MemWidth,
+                    PipeFieldName::MemSigned,
                     PipeFieldName::RegToWrite,
                     PipeFieldName::WriteReg,
                     PipeFieldName::RegToWrite,
@@ -625,10 +626,7 @@ impl Sim {
                         _ => {}
                     }
                     // Calculate branch target
-                    let sign_ext_imm = match instruction.get_imm() {
-                        Some(imm) => Sim::sign_ext_imm(imm),
-                        None => 0,
-                    };
+                    let sign_ext_imm = Sim::sign_ext_imm(instruction.get_imm().unwrap_or(0));
                     let offset = sign_ext_imm << 2;
 
                     let pc_plus_4 = match self.if_id_reg.read(PipeFieldName::PcPlus4) {
@@ -686,34 +684,22 @@ impl Sim {
                     // SignExtImm
                     self.id_ex_reg.load(
                         PipeFieldName::SignExtImm,
-                        PipeField::U32(match instruction.get_imm() {
-                            Some(imm) => Sim::sign_ext_imm(imm),
-                            None => 0,
-                        }),
+                        PipeField::U32(sign_ext_imm),
                     );
                     // Rt
                     self.id_ex_reg.load(
                         PipeFieldName::Rt,
-                        PipeField::U8(match instruction.get_rt() {
-                            Some(reg) => reg as u8,
-                            None => 0,
-                        }),
+                        PipeField::U8(instruction.get_rt().unwrap_or(Register::ZERO) as u8),
                     );
                     // Rd
                     self.id_ex_reg.load(
                         PipeFieldName::Rd,
-                        PipeField::U8(match instruction.get_rd() {
-                            Some(reg) => reg as u8,
-                            None => 0,
-                        }),
+                        PipeField::U8(instruction.get_rd().unwrap_or(Register::ZERO) as u8),
                     );
                     // Shamt
                     self.id_ex_reg.load(
                         PipeFieldName::Shamt,
-                        PipeField::U8(match instruction.get_shamt() {
-                            Some(shamt) => shamt,
-                            None => 0,
-                        }),
+                        PipeField::U8(instruction.get_shamt().unwrap_or(0)),
                     );
                     // IsNop
                     self.id_ex_reg
@@ -959,6 +945,12 @@ impl Sim {
         }
     }
 
+    fn mem_read(&self, addr: u32, size: u8) -> u32 {
+        let mut d = self.memory.read(addr);
+        d = d >> ((4 - size) * 8);
+        d
+    }
+
     fn memory_stage(&mut self, stall: bool, squash: bool) {
         if squash {
             insert_bubble!(self, MEMORY);
@@ -1068,6 +1060,8 @@ impl Sim {
             self.ex_mem_reg
                 .pass_through(&mut self.mem_wb_reg, PipeFieldName::MemWidth);
             self.ex_mem_reg
+                .pass_through(&mut self.mem_wb_reg, PipeFieldName::MemSigned);
+            self.ex_mem_reg
                 .pass_through(&mut self.mem_wb_reg, PipeFieldName::RegToWrite);
             self.ex_mem_reg
                 .pass_through(&mut self.mem_wb_reg, PipeFieldName::WriteReg);
@@ -1138,16 +1132,47 @@ impl Sim {
                         PipeField::U8(w) => w,
                         _ => panic!(),
                     };
+                    let mem_signed = match self.mem_wb_reg.read(PipeFieldName::MemSigned) {
+                        PipeField::Bool(b) => b,
+                        _ => panic!(),
+                    };
                     // TODO: Check if mem is signed
-                    match mem_width {
-                        1 => {
-                            mem_data &= 0x0000_00FF;
+                    // TODO: The ordering of bytes is different than what is expected
+                    if mem_signed {
+                        // Account for sign extension
+                        match mem_width {
+                            1 => {
+                                mem_data = mem_data >> (8 * 3);
+                                if mem_data & 0x80 != 0 {
+                                    mem_data |= 0xFFFF_FF00;
+                                } else {
+                                    mem_data &= 0x0000_00FF;
+                                }
+                            }
+                            2 => {
+                                mem_data = mem_data >> (8 * 2);
+                                if mem_data & 0x8000 != 0 {
+                                    mem_data |= 0xFFFF_0000;
+                                } else {
+                                    mem_data &= 0x0000_FFFF;
+                                }
+                            }
+                            4 => {}
+                            _ => unreachable!(),
                         }
-                        2 => {
-                            mem_data &= 0x0000_FFFF;
+                    } else {
+                        match mem_width {
+                            1 => {
+                                mem_data = mem_data >> (8 * 3);
+                                mem_data &= 0x0000_00FF;
+                            }
+                            2 => {
+                                mem_data = mem_data >> (8 * 2);
+                                mem_data &= 0x0000_FFFF;
+                            }
+                            4 => {}
+                            _ => unreachable!(),
                         }
-                        4 => {}
-                        _ => unreachable!(),
                     }
                     eprintln!(
                         "Writing data 0x{:X} to register {:#?}",

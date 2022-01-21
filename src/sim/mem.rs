@@ -35,10 +35,24 @@ impl Memory {
 }
 
 impl ClockedMap<u32, u32> for Memory {
+    // TODO: change how endianness works here
     fn read(&self, field: u32) -> u32 {
-        match self.map.get(&field) {
-            Some(v) => *v,
-            None => 0,
+        //  Handle unaligned reads
+
+        let r = field % 4;
+        let addr = field - r;
+        let mut d0: u32;
+        d0 = *self.map.get(&addr).unwrap_or(&0);
+
+        if r != 0 {
+            let mut d1 = *self.map.get(&(addr + 4)).unwrap_or(&0);
+
+            d0 = d0 << (r * 8);
+            d1 = d1 >> ((4 - r) * 8);
+
+            d0 | d1
+        } else {
+            d0
         }
     }
 
@@ -158,5 +172,13 @@ mod tests {
         mem.clock();
 
         assert!(mem.get(1).is_err());
+    }
+
+    #[test]
+    pub fn test_unaligned_reads_with_clocked_map() {
+        let mut mem = Memory::new();
+        mem.load(0, 0x1234_5678);
+        mem.clock();
+        assert_eq!(mem.read(1), 0x3456_7800);
     }
 }

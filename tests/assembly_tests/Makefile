@@ -15,6 +15,10 @@ rout_files = addi.rout \
 			divu.rout \
 			lui.rout \
 			lw.rout \
+			lb.rout \
+			lh.rout \
+			lbu.rout \
+			lhu.rout \
 			mul.rout \
 			nor.rout \
 			ori.rout \
@@ -32,8 +36,6 @@ rout_files = addi.rout \
 			test_raw_dep.rout \
 			xori.rout \
 			xor.rout \
-			lh.rout \
-			lhu.rout \
 			mtlo_mthi.rout\
 			#clo.rout\
 
@@ -49,6 +51,10 @@ rdata_files = addi.rdata \
 			divu.rdata \
 			lui.rdata \
 			lw.rdata \
+			lb.rdata \
+			lh.rdata \
+			lbu.rdata \
+			lhu.rdata \
 			j.rdata \
 			back_j.rdata \
 			jr.rdata \
@@ -71,8 +77,6 @@ rdata_files = addi.rdata \
 			test_raw_dep.rdata \
 			xori.rdata \
 			xor.rdata \
-			lh.rdata \
-			lhu.rdata \
 			mtlo_mthi.rdata \
 			#clo.rdata\
 

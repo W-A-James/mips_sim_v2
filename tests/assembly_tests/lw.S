@@ -1,9 +1,13 @@
 .text
-lw	$t1, 0($sp)
-lw  $t2, 4($t0)
-lw	$t3, 8($t0)
-lw  $t0, tdata0
-lw  $t1, 0($t0)
+lw	$t1, tdata0
+lw  $t2, tdata1 
+lw	$t3, tdata2 
+nop
+nop
+nop
+nop
+nop
+nop
 
 .data
 tdata0:
