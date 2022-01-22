@@ -1,6 +1,7 @@
 use super::common::Register;
 use num_enum::TryFromPrimitive;
 use std::convert::TryFrom;
+use wasm_bindgen::prelude::*;
 
 use super::common::HALT_INSTRUCTION;
 
@@ -94,6 +95,7 @@ pub const RS_OFFSET_BITS: u32 = 21;
 pub const RD_OFFSET_BITS: u32 = 11;
 pub const SHAMT_OFFSET_BITS: u32 = 6;
 
+#[wasm_bindgen]
 #[derive(Clone, Copy, Debug)]
 pub struct Instruction {
     rs: Option<Register>,

@@ -3,6 +3,7 @@ use super::common::{ALUOperation, ALUSrc, RegSrc};
 use super::traits::{ClockedMap, Field, Value};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
+use wasm_bindgen::prelude::*;
 
 #[derive(Hash, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PipeFieldName {
@@ -142,6 +143,7 @@ lazy_static! {
     };
 }
 
+#[wasm_bindgen]
 #[derive(Debug, Clone)]
 pub struct PipeRegister {
     name: String,

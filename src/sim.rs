@@ -16,6 +16,9 @@ use pipe_reg::{PipeField, PipeFieldName};
 use std::convert::TryFrom;
 use traits::ClockedMap;
 
+use wasm_bindgen::prelude::*;
+
+#[wasm_bindgen]
 #[derive(Debug)]
 pub struct Sim {
     stalling_unit: stalling::StallingUnit,
@@ -58,6 +61,7 @@ pub struct SimState {
 }
 
 // -------- Public API ---------
+#[wasm_bindgen]
 impl Sim {
     pub fn new() -> Sim {
         let if_id_reg: pipe_reg::PipeRegister;
