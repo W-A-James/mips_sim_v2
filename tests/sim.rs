@@ -211,19 +211,27 @@ mod tests {
     ]}
 
     build_test! {beq, vec![
-    ], ignore}
+        (T0, 0)
+    ]
+    }
 
     build_test! {ble, vec![], ignore}
 
-    build_test! {blez, vec![], ignore}
+    build_test! {blez, vec![
+        (T0, 1),
+        (T1, 202)
+    ]}
 
-    build_test! {bltz, vec![], ignore}
+    build_test! {bltz, vec![
+        (T0, 0),
+        (T1, 200)
+    ]}
 
-    build_test! {bne, vec![(T0, 0), (T1, 15)], ignore}
+    build_test! {bne, vec![(T0, 40), (T1, 0)]}
 
-    build_test! {bgez, vec![(T1, u32::MAX), (T0, 1 << 30)], ignore}
+    build_test! {bgez, vec![(T1, -1i32 as u32), (T0, 1 << 11)]}
 
-    build_test! {bgtz, vec![(T0, 55)], ignore}
+    build_test! {bgtz, vec![(T0, 0)]}
 
     build_test! {j, vec![(T0, 100), (T1, 200)], ignore}
 
@@ -313,4 +321,7 @@ mod tests {
     build_test! {test_raw_dep2, vec![(T0, 0x0001_0000),(T1, 0x0001_0000), (T2, 0x0002_0000)]}
 
     build_test! {test_back_to_back_raw_dep, vec![(T3, 8)]}
+
+    build_test! {fib, vec![(T0, 55)]}
 }
+

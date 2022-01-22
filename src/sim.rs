@@ -296,6 +296,12 @@ macro_rules! insert_bubble {
             .load(PipeFieldName::AluSrc2, PipeField::ALU(ALUSrc::Zero));
         $sim.id_ex_reg
             .load(PipeFieldName::RegDest, PipeField::Dest(RegDest::XXX));
+        $sim.id_ex_reg
+            .load(PipeFieldName::IsBranch, PipeField::Bool(false));
+        $sim.id_ex_reg
+            .load(PipeFieldName::IsJump, PipeField::Bool(false));
+        $sim.id_ex_reg
+            .load(PipeFieldName::BranchTaken, PipeField::Bool(false));
     }};
     ($sim: expr, EXECUTE) => {{
         $sim.ex_mem_reg
@@ -323,27 +329,6 @@ impl Sim {
         rv
     }
 
-    fn load_pc(&mut self, is_branch: bool, is_jump: bool, branch_taken: bool) {
-        if is_branch && branch_taken {
-            self.pc.load(
-                PipeFieldName::PC,
-                self.id_ex_reg.read(PipeFieldName::BranchTarget),
-            );
-        } else if is_jump {
-            self.pc.load(
-                PipeFieldName::PC,
-                self.id_ex_reg.read(PipeFieldName::JumpTarget),
-            );
-        } else {
-            match self.pc.read(PipeFieldName::PC) {
-                PipeField::U32(pc) => {
-                    self.pc.load(PipeFieldName::PC, PipeField::U32(pc + 4));
-                }
-                _ => panic!("Invalid value in pc"),
-            }
-        }
-    }
-
     fn fetch_stage(&mut self, stall: bool, squash: bool) {
         let is_branch = match self.id_ex_reg.read(PipeFieldName::IsBranch) {
             PipeField::Bool(b) => b,
@@ -360,17 +345,36 @@ impl Sim {
             _ => panic!(),
         };
 
-        let pc = match self.pc.read(PipeFieldName::PC) {
-            PipeField::U32(pc_) => pc_,
-            _ => panic!(),
+        // TODO: check if we are going to take a branch or jump. Use the branch/
+        // jump target instead of the current PC
+        let pc = if is_branch && branch_taken {
+            match self.id_ex_reg.read(PipeFieldName::BranchTarget) {
+                PipeField::U32(t) => {
+                    self.stalling_unit
+                        .load(PipeFieldName::SquashDecode, PipeField::Bool(false));
+                    t
+                }
+                _ => panic!(),
+            }
+        } else if is_jump {
+            match self.id_ex_reg.read(PipeFieldName::JumpTarget) {
+                PipeField::U32(t) => {
+                    self.stalling_unit
+                        .load(PipeFieldName::SquashDecode, PipeField::Bool(false));
+                    t
+                }
+                _ => panic!(),
+            }
+        } else {
+            match self.pc.read(PipeFieldName::PC) {
+                PipeField::U32(pc_) => pc_,
+                _ => panic!(),
+            }
         };
         eprintln!("Fetch: pc:0x{:X}", pc);
 
         // Check if this stage is being squashed
         if squash {
-            self.load_pc(is_branch, is_jump, branch_taken);
-            self.stalling_unit
-                .load(PipeFieldName::SquashFetch, PipeField::Bool(false));
             // don't update state and send a bubble
         } else if stall {
             // Don't load anything from pc and don't update pc
@@ -385,8 +389,7 @@ impl Sim {
                 .load(PipeFieldName::InstructionPc, PipeField::U32(pc));
             self.if_id_reg
                 .load(PipeFieldName::PcPlus4, PipeField::U32(pc + 4));
-
-            self.load_pc(is_branch, is_jump, branch_taken);
+            self.pc.load(PipeFieldName::PC, PipeField::U32(pc + 4));
         }
     }
 
@@ -612,11 +615,13 @@ impl Sim {
                                 PipeField::Branch(BranchType::Beq) => branch_compare == 0,
                                 PipeField::Branch(BranchType::Bne) => branch_compare != 0,
                                 PipeField::Branch(BranchType::Bgez)
-                                | PipeField::Branch(BranchType::Bgezal) => reg_1_val as i32 >= 0,
+                                | PipeField::Branch(BranchType::Bgezal) => {
+                                    reg_1_val & 0x8000_0000 == 0
+                                }
                                 PipeField::Branch(BranchType::Bgtz) => reg_1_val as i32 > 0,
-                                PipeField::Branch(BranchType::Blez) => reg_1_val as i32 <= 0,
+                                PipeField::Branch(BranchType::Blez) => (reg_1_val as i32) <= 0,
                                 PipeField::Branch(BranchType::Bltzal)
-                                | PipeField::Branch(BranchType::Bltz) => (reg_1_val as i32) < 0,
+                                | PipeField::Branch(BranchType::Bltz) => reg_1_val & 0x8000_0000 != 0,
                                 _ => false,
                             };
 
@@ -639,7 +644,9 @@ impl Sim {
                         .load(PipeFieldName::BranchTarget, PipeField::U32(branch_target));
                     if branch_taken {
                         self.stalling_unit
-                            .load(PipeFieldName::SquashFetch, PipeField::Bool(true));
+                            .load(PipeFieldName::SquashDecode, PipeField::Bool(true));
+
+                        self.if_id_reg.clear_pending();
                         insert_bubble!(self, FETCH);
                     }
 
@@ -943,12 +950,6 @@ impl Sim {
         }
     }
 
-    fn mem_read(&self, addr: u32, size: u8) -> u32 {
-        let mut d = self.memory.read(addr);
-        d = d >> ((4 - size) * 8);
-        d
-    }
-
     fn memory_stage(&mut self, stall: bool, squash: bool) {
         if squash {
             insert_bubble!(self, MEMORY);
@@ -1001,6 +1002,7 @@ impl Sim {
                 let rem = address % 4;
                 match rem {
                     0 => {
+                        // TODO: Check that loading bytes works properly
                         let mut input_mask = 0u32;
                         for _ in 0..mem_width {
                             input_mask = (input_mask << 8) | 0xFF;
@@ -2364,7 +2366,10 @@ mod tests {
             instr,
             "PC",
             3,
-            &vec![(PC, PipeField::U32((TEXT_START + 4) + (0x0000_0020 << 2)))],
+            &vec![(
+                PC,
+                PipeField::U32(4 + (TEXT_START + 4) + (0x0000_0020 << 2)),
+            )],
         );
 
         // BGEZ
@@ -2567,7 +2572,7 @@ mod tests {
             instr,
             "STALLING_UNIT",
             2,
-            &vec![(SquashFetch, PipeField::Bool(true))],
+            &vec![(SquashFetch, PipeField::Bool(false))],
         );
         // J
         instr = instruction::Instruction::from_parts(
@@ -2867,7 +2872,7 @@ mod tests {
                 (ReadMem, PipeField::Bool(false)),
                 (WriteMem, PipeField::Bool(true)),
                 (WriteReg, PipeField::Bool(false)),
-                (RegDest, PipeField::Dest(common::RegDest::Rt)),
+                (RegDest, PipeField::Dest(common::RegDest::XXX)),
                 (AluOp, PipeField::Op(ALUOperation::ADD)),
             ],
         );
@@ -2897,7 +2902,7 @@ mod tests {
                 (ReadMem, PipeField::Bool(false)),
                 (WriteMem, PipeField::Bool(true)),
                 (WriteReg, PipeField::Bool(false)),
-                (RegDest, PipeField::Dest(common::RegDest::Rt)),
+                (RegDest, PipeField::Dest(common::RegDest::XXX)),
                 (AluOp, PipeField::Op(ALUOperation::ADD)),
             ],
         );

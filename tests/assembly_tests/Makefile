@@ -5,6 +5,8 @@ rout_files = addi.rout \
 			and.rout \
 			bgez.rout \
 			bgtz.rout \
+			bltz.rout \
+			blez.rout \
 			back_j.rout \
 			j.rout \
 			jr.rout \
@@ -40,6 +42,9 @@ rout_files = addi.rout \
 			sb.rout \
 			sh.rout \
 			sw.rout \
+			beq.rout \
+			bne.rout \
+			fib.rout \
 			#clo.rout\
 
 rdata_files = addi.rdata \
@@ -49,6 +54,8 @@ rdata_files = addi.rdata \
 			and.rdata \
 			bgez.rdata \
 			bgtz.rdata \
+			bltz.rdata \
+			blez.rdata \
 			bne.rdata \
 			div.rdata \
 			divu.rdata \
@@ -84,6 +91,9 @@ rdata_files = addi.rdata \
 			sb.rdata \
 			sh.rdata \
 			sw.rdata \
+			beq.rdata \
+			bne.rdata \
+			fib.rdata \
 			#clo.rdata\
 
 cc = mips-img-linux-gnu-gcc

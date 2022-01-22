@@ -1,7 +1,7 @@
 .text
 addiu   $t0, $zero, 64
 sb		$t0, d1
-lb		$t1, d1
+lbu		$t1, d1
 .word	0xdeadbeef
 nop
 nop

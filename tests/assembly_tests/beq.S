@@ -3,13 +3,12 @@
 li	$t0, 0
 li	$t1, 10
 
-loop:
-
+beq $t0, $zero, done
+nop
 addiu	$t0, $t0, 4
-addi	$t1, $t1, -1
-bne		$t1, $zero, loop
 nop
 
+done:
 .word 0xdeadbeef
 nop
 nop
