@@ -180,8 +180,7 @@ impl ClockedMap<PipeFieldName, PipeField> for PipeRegister {
         if self.current_map.contains_key(&field) {
             self.write_buffer.insert(field, value);
         } else {
-            // NOTE:
-            // Silently ignore here?
+            // Silently ignore here
             eprintln!(
                 "Invalid field '{:#?}' for pipe_register with name: {}",
                 field, self.name

@@ -41,7 +41,7 @@ fn complement_u64(v: u64) -> u64 {
 pub fn calculate(a: u32, b: u32, op: ALUOperation) -> Result<u32, ALUError> {
     use ALUOperation::*;
     match op {
-        ADD => { // TODO: Enable signed addition
+        ADD => {
             let a_i32 = a as i32;
             let b_i32 = b as i32;
             let result = a_i32.overflowing_add(b_i32);
@@ -59,7 +59,7 @@ pub fn calculate(a: u32, b: u32, op: ALUOperation) -> Result<u32, ALUError> {
                 Ok(result.0)
             }
         },
-        SUB => { // TODO: Enable signed subtraction
+        SUB => {
             let a_i32 = a as i32;
             let b_i32 = b as i32;
             let result = a_i32.overflowing_sub(b_i32);

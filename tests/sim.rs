@@ -86,7 +86,6 @@ mod tests {
     use Register::*;
 
     build_test! {addi, vec![(V0, 5), (V1, 4)]}
-    // FIXME: This should halt prematurely
     build_test! {addiu, vec![(V0, 5), (V1, 5)]}
     build_test! {add, vec![(T0, 70), (T1, 130), (T3, 0xFFFF_0041), (T4, 0xFFFF_0005)]}
     build_test! {and, vec![(T2, 0), (T3, 0), (T4, 0), (T5, 1)]}

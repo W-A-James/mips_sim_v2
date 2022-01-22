@@ -77,7 +77,6 @@ impl Sim {
 
         {
             use pipe_reg::PipeRegister;
-            // TODO: Determine fields needed for each pipe register
             if_id_reg = PipeRegister::new(
                 "IF/ID",
                 vec![
@@ -345,8 +344,6 @@ impl Sim {
             _ => panic!(),
         };
 
-        // TODO: check if we are going to take a branch or jump. Use the branch/
-        // jump target instead of the current PC
         let pc = if is_branch && branch_taken {
             match self.id_ex_reg.read(PipeFieldName::BranchTarget) {
                 PipeField::U32(t) => {
@@ -446,7 +443,6 @@ impl Sim {
             insert_bubble!(self, DECODE);
             self.controller
                 .update_state(&instruction::Instruction::new(0).unwrap());
-            // TODO
         } else {
             let instr = match self.if_id_reg.read(PipeFieldName::Instruction) {
                 PipeField::U32(i) => i,
@@ -536,12 +532,8 @@ impl Sim {
                         self.pc
                             .load(PipeFieldName::PC, self.pc.read(PipeFieldName::PC));
                         insert_bubble!(self, DECODE);
-                        //eprintln!("{:#?}", self.id_ex_reg);
                         return;
                     }
-                    // TODO: What should happen when we recover from a stall?
-                    //      pc should advance
-                    //      we load in the newly fetch instruction
 
                     let reg_1_val = self.reg_file.read(r1);
                     let reg_2_val = self.reg_file.read(r2);
@@ -638,7 +630,6 @@ impl Sim {
                         PipeField::U32(v) => v,
                         _ => panic!(),
                     };
-                    // TODO: Ensure that this is a signed operation
                     let branch_target = pc_plus_4.wrapping_add(offset);
                     self.id_ex_reg
                         .load(PipeFieldName::BranchTarget, PipeField::U32(branch_target));

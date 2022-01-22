@@ -130,9 +130,7 @@ impl Controller {
                                 set_signal_value!(self, Reg2Src, PipeField::RSrc(RegSrc::Rt));
                                 set_signal_value!(self, AluToReg, PipeField::Bool(true));
                             }
-                            // NOTE:
-                            // WriteReg signal only governs the general purpose
-                            // registers
+                            // NOTE: WriteReg signal only governs the general purpose registers
                             FuncCode::Div => {
                                 set_signal_value!(self, MuldivReqValid, PipeField::Bool(true));
                                 set_signal_value!(self, WriteReg, PipeField::Bool(false));
