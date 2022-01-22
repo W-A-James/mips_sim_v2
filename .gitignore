@@ -1,6 +1,6 @@
 /target
 Cargo.lock
-.l
-.o
-.rdata
-.rout
+*.l
+*.o
+*.rdata
+*.rout
