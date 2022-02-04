@@ -131,7 +131,7 @@ fn extract_imm(instruction_word: u32) -> u16 {
 }
 
 fn extract_address(instruction_word: u32) -> u32 {
-    instruction_word & 0x03FF_FFFF
+    (instruction_word & 0x03FF_FFFF) << 2
 }
 
 impl Instruction {
@@ -252,19 +252,25 @@ impl Instruction {
                     | OpCode::Lw
                     | OpCode::Lwl
                     | OpCode::Lwr
-                    | OpCode::Sw
-                    | OpCode::Sh
-                    | OpCode::Sb
-                    | OpCode::Swl
-                    | OpCode::Swr
                     | OpCode::Ll
                     | OpCode::Beq
                     | OpCode::Bne
                     | OpCode::Bgelt
                     | OpCode::Bgtz
-                    | OpCode::Blez => {
+                    | OpCode::Blez => Ok(Instruction {
+                        rs,
+                        rt,
+                        rd: None,
+                        op_code: op,
+                        func_code: None,
+                        shamt: None,
+                        imm,
+                        address: None,
+                        instr_word: instruction_word,
+                    }),
+                    OpCode::Sb | OpCode::Sh | OpCode::Sw | OpCode::Swl | OpCode::Swr => {
                         Ok(Instruction {
-                            rs,
+                            rs: None,
                             rt,
                             rd: None,
                             op_code: op,
@@ -460,13 +466,13 @@ mod tests {
         let instr = instr.unwrap();
 
         assert_eq!(instr.get_op_code(), OpCode::J);
-        assert_eq!(instr.get_address(), Some(0x0000_FFFF));
+        assert_eq!(instr.get_address(), Some(0x0000_FFFF << 2));
 
         let instr = Instruction::new(0x0CFF_FFFF);
         let instr = instr.unwrap();
 
         assert_eq!(instr.get_op_code(), OpCode::Jal);
-        assert_eq!(instr.get_address(), Some(0x00FF_FFFF));
+        assert_eq!(instr.get_address(), Some(0x00FF_FFFF << 2));
     }
 
     #[test]

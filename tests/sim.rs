@@ -232,15 +232,15 @@ mod tests {
 
     build_test! {bgtz, vec![(T0, 0)]}
 
-    build_test! {j, vec![(T0, 100), (T1, 200)], ignore}
+    build_test! {j, vec![(T0, 100), (T1, 200)]}
 
-    build_test! {back_j, vec![(T0, 300), (T1, 200)], ignore}
+    build_test! {back_j, vec![(T0, 300), (T1, 200)]}
 
-    build_test! {jr, vec![(T0, 0), (T1, 1)], ignore}
+    build_test! {jr, vec![(T0, 0), (T1, 1)]}
 
-    build_test! {jalr, vec![(V0, 300)], ignore}
+    build_test! {jalr, vec![(V0, 300)]}
 
-    build_test! {jal, vec![(V0, 300)], ignore}
+    build_test! {jal, vec![(V0, 300)]}
 
     build_test! {lb, vec![
         (T1, 0xffff_ffab),

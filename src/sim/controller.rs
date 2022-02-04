@@ -454,7 +454,7 @@ impl Controller {
 
                                 set_signal_value!(self, AluToReg, PipeField::Bool(true));
                                 set_signal_value!(self, MuldivReqValid, PipeField::Bool(false));
-                                set_signal_value!(self, WriteReg, PipeField::Bool(false));
+                                set_signal_value!(self, WriteReg, PipeField::Bool(true));
                                 set_signal_value!(self, ReadMem, PipeField::Bool(false));
                                 set_signal_value!(self, WriteMem, PipeField::Bool(false));
                                 set_signal_value!(self, Halt, PipeField::Bool(false));

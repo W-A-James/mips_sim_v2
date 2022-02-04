@@ -329,6 +329,11 @@ impl Sim {
     }
 
     fn fetch_stage(&mut self, stall: bool, squash: bool) {
+        // TODO(IMPLEMENT DELAY SLOT)
+        //    On taken branch, mark current instruction as being in delay slot
+        //    If current instruction is in delay slot:
+        //      fetch at current_pc and then set current_pc to JumpTarget/Branch target
+        //    
         let is_branch = match self.id_ex_reg.read(PipeFieldName::IsBranch) {
             PipeField::Bool(b) => b,
             _ => panic!(),
@@ -613,7 +618,9 @@ impl Sim {
                                 PipeField::Branch(BranchType::Bgtz) => reg_1_val as i32 > 0,
                                 PipeField::Branch(BranchType::Blez) => (reg_1_val as i32) <= 0,
                                 PipeField::Branch(BranchType::Bltzal)
-                                | PipeField::Branch(BranchType::Bltz) => reg_1_val & 0x8000_0000 != 0,
+                                | PipeField::Branch(BranchType::Bltz) => {
+                                    reg_1_val & 0x8000_0000 != 0
+                                }
                                 _ => false,
                             };
 
@@ -648,7 +655,9 @@ impl Sim {
 
                             if is_jump {
                                 self.stalling_unit
-                                    .load(PipeFieldName::SquashFetch, PipeField::Bool(true));
+                                    .load(PipeFieldName::SquashDecode, PipeField::Bool(true));
+                                self.if_id_reg.clear_pending();
+                                insert_bubble!(self, FETCH);
 
                                 match instruction.get_op_code() {
                                     instruction::OpCode::J | instruction::OpCode::Jal => {
@@ -995,10 +1004,12 @@ impl Sim {
                     0 => {
                         // TODO: Check that loading bytes works properly
                         let mut input_mask = 0u32;
+                        let mut output_mask = 0xFFFF_FFFFu32;
                         for _ in 0..mem_width {
                             input_mask = (input_mask << 8) | 0xFF;
+                            output_mask >>= 8;
                         }
-                        let output_mask = !input_mask;
+                        //let output_mask = !input_mask;
 
                         let lower_bytes = (input_mask & reg_2_data) << ((4 - mem_width) * 8);
                         let current_mem_val = self.memory.read(address);
@@ -2574,7 +2585,7 @@ mod tests {
             None,
             None,
             None,
-            Some(TEXT_START),
+            Some(TEXT_START >> 2),
         )
         .unwrap();
         test_instr(
@@ -2594,7 +2605,7 @@ mod tests {
             instr,
             "STALLING_UNIT",
             2,
-            &vec![(SquashFetch, PipeField::Bool(true))],
+            &vec![(SquashFetch, PipeField::Bool(false))],
         );
         // JAL
         instr = instruction::Instruction::from_parts(
@@ -2605,7 +2616,7 @@ mod tests {
             None,
             None,
             None,
-            Some(TEXT_START),
+            Some(TEXT_START >> 2),
         )
         .unwrap();
         test_instr(
@@ -2625,7 +2636,7 @@ mod tests {
             instr,
             "STALLING_UNIT",
             2,
-            &vec![(SquashFetch, PipeField::Bool(true))],
+            &vec![(SquashFetch, PipeField::Bool(false))],
         );
         // JALR
         // JR
