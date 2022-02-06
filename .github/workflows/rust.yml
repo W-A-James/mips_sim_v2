@@ -1,0 +1,28 @@
+name: Rust
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build
+      run: cargo build --verbose
+    - name: Build Binary Utils
+      run: wget -q https://codescape.mips.com/components/toolchain/2019.02-05/Codescape.GNU.Tools.Package.2019.02-05.for.MIPS.IMG.Linux.CentOS-6.x86.tar.gz && tar -xf Codescape.GNU.Tools.Package.2019.02-05.for.MIPS.IMG.Linux.CentOS-6.x86.tar.gz
+    - name: Add binaries to path
+      run: echo "$PWD/mips-img-linux-gnu/2019.02-05/bin">> $GITHUB_PATH
+    - name: Build tests
+      run: cd tests/assembly_tests && make all
+    - name: Run tests
+      run: cargo test --verbose

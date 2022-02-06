@@ -45,6 +45,7 @@ rout_files = addi.rout \
 			beq.rout \
 			bne.rout \
 			fib.rout \
+			delay_slot.rout \
 			#clo.rout\
 
 rdata_files = addi.rdata \
@@ -94,13 +95,14 @@ rdata_files = addi.rdata \
 			beq.rdata \
 			bne.rdata \
 			fib.rdata \
+			delay_slot.rdata \
 			#clo.rdata\
 
 cc = mips-img-linux-gnu-gcc
 as = mips-img-linux-gnu-as
 ld = mips-img-linux-gnu-ld
 read_elf = mips-img-linux-gnu-readelf
-as_flags = -march=r2000 -g --no-trap -msoft-float
+as_flags = -march=r2000 -g --no-trap -msoft-float -O0
 cc_flags = -march=r2000 -mfp32 -mno-check-zero-division -mno-llsc -mcompact-branches=never -fno-delayed-branch -Og -g -c
 ld_flags = -nolibc -nostdlib -nodefaultlibs -static --Ttext 0x400000 --no-omagic --architecture r2000
 rout = ./compile_to_rout

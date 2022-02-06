@@ -41,6 +41,7 @@ pub enum PipeFieldName {
     InstructionPc,
     Instruction,
     InDelaySlot,
+    ExitDelaySlot,
     MuldivRes,
     PC,
     Status,
@@ -118,6 +119,7 @@ lazy_static! {
         m.insert(InstructionPc, PipeField::U32(0));
         m.insert(Instruction, PipeField::U32(0));
         m.insert(InDelaySlot, PipeField::Bool(false));
+        m.insert(ExitDelaySlot, PipeField::Bool(false));
         m.insert(MuldivRes, PipeField::U64(0));
         m.insert(PC, PipeField::U32(0));
         m.insert(Status, PipeField::U32(0));
@@ -180,10 +182,10 @@ impl Value for PipeField {}
 impl ClockedMap<PipeFieldName, PipeField> for PipeRegister {
     fn load(&mut self, field: PipeFieldName, value: PipeField) {
         if self.current_map.contains_key(&field) {
+            // Check that value matches type of default
             self.write_buffer.insert(field, value);
         } else {
-            // Silently ignore here
-            eprintln!(
+            panic!(
                 "Invalid field '{:#?}' for pipe_register with name: {}",
                 field, self.name
             );
