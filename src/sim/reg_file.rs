@@ -2,6 +2,9 @@ use super::common::Register;
 use super::traits::{ClockedMap, Value};
 use std::collections::HashMap;
 
+use wasm_bindgen::prelude::*;
+
+#[wasm_bindgen]
 #[cfg(not(test))]
 #[derive(Debug, Clone)]
 pub struct RegFile {

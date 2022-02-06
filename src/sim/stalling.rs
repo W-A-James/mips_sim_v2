@@ -3,12 +3,15 @@ use super::pipe_reg::{PipeField, PipeFieldName, DEFAULT_VALUES};
 use super::traits::ClockedMap;
 use std::collections::HashMap;
 
+use wasm_bindgen::prelude::*;
+
 #[derive(Hash, Eq, PartialEq, Debug, Clone)]
 struct PipeVal {
     pub name: PipeFieldName,
     pub value: PipeField,
 }
 
+#[wasm_bindgen]
 #[derive(Debug, Clone)]
 pub struct StallingUnit {
     write_in_flight: HashMap<Register, bool>,
@@ -16,6 +19,7 @@ pub struct StallingUnit {
     signal_write_buffer: HashMap<PipeFieldName, PipeField>,
 }
 
+#[wasm_bindgen]
 impl StallingUnit {
     pub fn new() -> StallingUnit {
         let mut write_in_flight = HashMap::new();

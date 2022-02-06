@@ -4,12 +4,15 @@ use super::pipe_reg::{PipeField, PipeFieldName, DEFAULT_VALUES};
 use std::collections::HashMap;
 use std::iter::Iterator;
 
+use wasm_bindgen::prelude::*;
+
 macro_rules! set_signal_value {
     ($item: ident, $field_name: ident, $value: expr) => {{
         $item.signal.insert(PipeFieldName::$field_name, $value);
     }};
 }
 
+#[wasm_bindgen]
 #[derive(Debug, Clone)]
 pub struct Controller {
     signal: HashMap<PipeFieldName, PipeField>,

@@ -41,6 +41,7 @@ pub struct Sim {
     cycles: u64,
 }
 
+#[wasm_bindgen]
 #[derive(Debug, Clone)]
 pub struct SimState {
     pub stalling_unit: stalling::StallingUnit,
