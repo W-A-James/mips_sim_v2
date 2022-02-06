@@ -322,5 +322,7 @@ mod tests {
     build_test! {test_back_to_back_raw_dep, vec![(T3, 8)]}
 
     build_test! {fib, vec![(T0, 55)]}
+
+    build_test! {delay_slot, vec![(T0, 20), (T1, 20), (T2, 0)]}
 }
 
