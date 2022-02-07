@@ -445,7 +445,6 @@ impl Controller {
                                 set_signal_value!(self, Reg2Src, PipeField::RSrc(RegSrc::Rt));
                             }
                             FuncCode::Jalr => {
-                                // TODO
                                 set_signal_value!(self, AluSrc1, PipeField::ALU(ALUSrc::PcPlus4));
                                 set_signal_value!(self, AluSrc2, PipeField::ALU(ALUSrc::Zero));
                                 set_signal_value!(self, RegDest, PipeField::Dest(RegDest::Rd));
@@ -845,7 +844,6 @@ impl Controller {
                     set_signal_value!(self, IsJump, PipeField::Bool(false));
                 }
                 OpCode::Beq => {
-                    // TODO: add signals to disable unwanted behaviour
                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::Rs));
                     set_signal_value!(self, Reg2Src, PipeField::RSrc(RegSrc::Rt));
 
@@ -869,11 +867,9 @@ impl Controller {
 
                     set_signal_value!(self, AluSrc1, PipeField::ALU(ALUSrc::Reg1));
                     set_signal_value!(self, AluSrc2, PipeField::ALU(ALUSrc::Zero));
-                    // TODO: handle the different cases here
                     match instr.get_rt() {
                         Some(rt) => {
                             match rt {
-                                // TODO:
                                 // BLTZ
                                 Register::ZERO => {
                                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::Rs));
@@ -902,7 +898,6 @@ impl Controller {
                                     );
                                 }
                                 // BLTZAL
-                                // TODO
                                 Register::S0 => {
                                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::Rs));
                                     set_signal_value!(self, Reg2Src, PipeField::RSrc(RegSrc::Rt));
@@ -934,7 +929,6 @@ impl Controller {
                                     );
                                 }
                                 // BGEZAL
-                                // TODO
                                 Register::S1 => {
                                     set_signal_value!(self, Reg1Src, PipeField::RSrc(RegSrc::Rs));
                                     set_signal_value!(self, Reg2Src, PipeField::RSrc(RegSrc::Rt));
@@ -1348,7 +1342,6 @@ mod tests {
 
     #[test]
     pub fn test_controller_state_update() {
-        // TODO: Test ALL instructions in this way
         let mut controller = Controller::new();
 
         // add $t0, $t1, $t2

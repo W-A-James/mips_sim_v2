@@ -16,6 +16,7 @@ use pipe_reg::{PipeField, PipeFieldName};
 use std::convert::TryFrom;
 use traits::ClockedMap;
 
+/// Simulator of a simple MIPS processor
 #[derive(Debug)]
 pub struct Sim {
     stalling_unit: stalling::StallingUnit,
@@ -199,12 +200,14 @@ impl Sim {
         sim
     }
 
+    /// Advance the simulator by `n` clock cycles
     pub fn step(&mut self, n: u32) {
         for _ in 0..n {
             self._step();
         }
     }
 
+    /// Advance the simulator until a halt instruction is encountered
     pub fn step_to_halt(&mut self) {
         loop {
             match self.halt.read(PipeFieldName::Halt) {
@@ -220,6 +223,8 @@ impl Sim {
         }
     }
 
+    /// Load the program binary into simulator memory starting text
+    /// at addr 0x0040_0000
     pub fn load_binary(&mut self, instrs: &Vec<u32>, data: &Vec<u32>) {
         let mut mem_index = TEXT_START;
         eprintln!("Instructions");
@@ -245,6 +250,7 @@ impl Sim {
         self.memory.clock();
     }
 
+    /// Return a SimState struct containing all the current state of the simulator
     pub fn get_state(&self) -> SimState {
         SimState {
             stalling_unit: self.stalling_unit.clone(),
@@ -330,7 +336,6 @@ impl Sim {
     }
 
     fn fetch_stage(&mut self, stall: bool, squash: bool) {
-        // TODO(IMPLEMENT DELAY SLOT)
         //    On taken branch, mark current instruction as being in delay slot
         //    If current instruction is in delay slot:
         //      fetch at current_pc and then set current_pc to JumpTarget/Branch target
@@ -523,7 +528,6 @@ impl Sim {
                         _ => {}
                     }
 
-                    // TODO: Check if we are exiting a delay slot first
                     let is_jump = match self.controller.get_state(PipeFieldName::IsJump).unwrap() {
                         PipeField::Bool(v) => v,
                         _ => panic!(),
@@ -769,7 +773,6 @@ impl Sim {
             err, epc
         );
         self.halt.load(PipeFieldName::Halt, PipeField::Bool(true));
-        // TODO:
         // Write to cause register
         // Write to epc
         self.epc_reg.load(PipeFieldName::EPC, PipeField::U32(epc));
@@ -1042,7 +1045,6 @@ impl Sim {
                 let rem = address % 4;
                 match rem {
                     0 => {
-                        // TODO: Check that loading bytes works properly
                         let mut input_mask = 0u32;
                         let mut output_mask = 0xFFFF_FFFFu32;
                         for _ in 0..mem_width {
@@ -1192,8 +1194,6 @@ impl Sim {
                         PipeField::Bool(b) => b,
                         _ => panic!(),
                     };
-                    // TODO: Check if mem is signed
-                    // TODO: The ordering of bytes is different than what is expected
                     if mem_signed {
                         // Account for sign extension
                         match mem_width {
@@ -1309,7 +1309,6 @@ impl Sim {
         self.ex_mem_reg.clock();
         self.mem_wb_reg.clock();
 
-        // TODO:
         self.pc.clock();
         self.status_reg.clock();
         self.epc_reg.clock();
