@@ -370,7 +370,6 @@ impl Sim {
 
             self.if_id_reg
                 .load(PipeFieldName::ExitDelaySlot, PipeField::Bool(true));
-            let instr = self.memory.read(pc);
         } else {
             pc = if is_branch && branch_taken {
                 match self.id_ex_reg.read(PipeFieldName::BranchTarget) {
