@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use wasm_bindgen::prelude::*;
 
-#[wasm_bindgen]
+
 #[cfg(not(test))]
 #[derive(Debug, Clone)]
 pub struct RegFile {

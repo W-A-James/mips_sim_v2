@@ -1,36 +1,38 @@
 pub mod sim;
 
+use lazy_static::lazy_static;
+use std::sync::Mutex;
 use wasm_bindgen::prelude::*;
 
-#[cfg(feature="wee_alloc")]
+#[cfg(feature = "wee_alloc")]
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
-#[wasm_bindgen]
-pub struct State {
-}
 
-impl State {
-    pub fn from_sim_state(s: sim::SimState) -> State {
-        State{}
-    }
+lazy_static! {
+    pub static ref SIM: Mutex<sim::Sim> = Mutex::new(sim::Sim::new());
 }
 
 #[wasm_bindgen]
-pub fn init_sim() -> sim::Sim {
-    sim::Sim::new()
+pub fn init_sim() {
+    (*SIM).lock().unwrap().reinit();
 }
 
 #[wasm_bindgen]
-pub fn step_sim(s: &mut sim::Sim, n: u32) {
-    s.step(n);
+pub fn step(n: u32) {
+    (*SIM).lock().unwrap().step(n);
 }
 
 #[wasm_bindgen]
-pub fn step_to_halt(s: &mut sim::Sim) {
-    s.step_to_halt();
+pub fn step_to_halt() {
+    (*SIM).lock().unwrap().step_to_halt();
 }
 
 #[wasm_bindgen]
-pub fn get_sim_state(s: &sim::Sim) -> State {
-    State::from_sim_state(s.get_state())
+pub fn load_binary(instrs: Vec<u32>, data: Vec<u32>) {
+    (*SIM).lock().unwrap().load_binary(&instrs, &data);
+}
+
+#[wasm_bindgen]
+pub fn get_state() {
+    let state = (*SIM).lock().unwrap().get_state();
 }

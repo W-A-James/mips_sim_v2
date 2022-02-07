@@ -12,7 +12,7 @@ macro_rules! set_signal_value {
     }};
 }
 
-#[wasm_bindgen]
+
 #[derive(Debug, Clone)]
 pub struct Controller {
     signal: HashMap<PipeFieldName, PipeField>,

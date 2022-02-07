@@ -11,7 +11,7 @@ struct PipeVal {
     pub value: PipeField,
 }
 
-#[wasm_bindgen]
+
 #[derive(Debug, Clone)]
 pub struct StallingUnit {
     write_in_flight: HashMap<Register, bool>,
@@ -19,7 +19,7 @@ pub struct StallingUnit {
     signal_write_buffer: HashMap<PipeFieldName, PipeField>,
 }
 
-#[wasm_bindgen]
+
 impl StallingUnit {
     pub fn new() -> StallingUnit {
         let mut write_in_flight = HashMap::new();

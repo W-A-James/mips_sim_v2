@@ -95,7 +95,7 @@ pub const RS_OFFSET_BITS: u32 = 21;
 pub const RD_OFFSET_BITS: u32 = 11;
 pub const SHAMT_OFFSET_BITS: u32 = 6;
 
-#[wasm_bindgen]
+
 #[derive(Clone, Copy, Debug)]
 pub struct Instruction {
     rs: Option<Register>,
@@ -140,7 +140,7 @@ impl Instruction {
     pub fn new(instruction_word: u32) -> Result<Instruction, InvalidInstructionError> {
         let op_code: u8 = extract_op_code(instruction_word);
         let op_code = OpCode::try_from(op_code);
-        let registers: Vec<Register> = Register::iter().collect();
+        let registers: Vec<Register> = Register::iter();
         let mut rs: Option<Register> = Some(registers[extract_rs(instruction_word) as usize]);
         let mut rt: Option<Register> = Some(registers[extract_rt(instruction_word) as usize]);
         let mut rd: Option<Register> = Some(registers[extract_rd(instruction_word) as usize]);

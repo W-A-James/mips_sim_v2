@@ -16,9 +16,6 @@ use pipe_reg::{PipeField, PipeFieldName};
 use std::convert::TryFrom;
 use traits::ClockedMap;
 
-use wasm_bindgen::prelude::*;
-
-#[wasm_bindgen]
 #[derive(Debug)]
 pub struct Sim {
     stalling_unit: stalling::StallingUnit,
@@ -41,7 +38,6 @@ pub struct Sim {
     cycles: u64,
 }
 
-#[wasm_bindgen]
 #[derive(Debug, Clone)]
 pub struct SimState {
     pub stalling_unit: stalling::StallingUnit,
@@ -62,7 +58,7 @@ pub struct SimState {
 }
 
 // -------- Public API ---------
-#[wasm_bindgen]
+
 impl Sim {
     pub fn new() -> Sim {
         let if_id_reg: pipe_reg::PipeRegister;
@@ -202,6 +198,11 @@ impl Sim {
         sim.initialize_registers();
 
         sim
+    }
+
+    pub fn reinit(&mut self) {
+        let s = Sim::new();
+        *self = s;
     }
 
     pub fn step(&mut self, n: u32) {
@@ -418,9 +419,9 @@ impl Sim {
             self.if_id_reg
                 .load(PipeFieldName::InstructionPc, PipeField::U32(pc));
 
-                self.if_id_reg
-                    .load(PipeFieldName::PcPlus4, PipeField::U32(pc + 4));
-                self.pc.load(PipeFieldName::PC, PipeField::U32(pc + 4));
+            self.if_id_reg
+                .load(PipeFieldName::PcPlus4, PipeField::U32(pc + 4));
+            self.pc.load(PipeFieldName::PC, PipeField::U32(pc + 4));
         }
     }
 
@@ -554,7 +555,8 @@ impl Sim {
                         // Send bubble to execute
                         self.id_ex_reg.clear_pending();
                         insert_bubble!(self, DECODE);
-                        self.id_ex_reg.load(PipeFieldName::InDelaySlot, PipeField::Bool(true));
+                        self.id_ex_reg
+                            .load(PipeFieldName::InDelaySlot, PipeField::Bool(true));
                         return;
                     }
 
