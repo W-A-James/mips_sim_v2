@@ -4,15 +4,16 @@ use super::traits::ClockedMap;
 use std::collections::HashMap;
 
 use wasm_bindgen::prelude::*;
+use serde::Serialize;
 
-#[derive(Hash, Eq, PartialEq, Debug, Clone)]
+#[derive(Hash, Eq, PartialEq, Debug, Clone, Serialize)]
 struct PipeVal {
     pub name: PipeFieldName,
     pub value: PipeField,
 }
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct StallingUnit {
     write_in_flight: HashMap<Register, bool>,
     signal: HashMap<PipeFieldName, PipeField>,

@@ -2,13 +2,14 @@ use super::traits::Field;
 use std::iter::Iterator;
 use num_enum::TryFromPrimitive;
 use wasm_bindgen::prelude::*;
+use serde::Serialize;
 
 pub const TEXT_START: u32 = 0x0040_0000;
 pub const STACK_POINTER_INITIAL: u32 = 0x7fff_ffff;
 pub const HALT_INSTRUCTION: u32 = 0xDEAD_BEEF;
 
 #[wasm_bindgen]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize)]
 pub enum ALUSrc {
     Zero,
     Reg1,
@@ -22,7 +23,7 @@ pub enum ALUSrc {
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize)]
 pub enum ALUOperation {
     ADD,
     ADDU,
@@ -49,7 +50,7 @@ pub enum ALUOperation {
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 pub enum RegDest {
     Rt,
     Rd,
@@ -60,7 +61,7 @@ pub enum RegDest {
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 pub enum BranchType {
     Beq,
     Bgez,
@@ -74,7 +75,7 @@ pub enum BranchType {
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 pub enum JumpType {
     J,
     Jal,
@@ -85,7 +86,7 @@ pub enum JumpType {
 
 #[wasm_bindgen]
 #[repr(u8)]
-#[derive(Debug, Hash, PartialEq, Eq, Copy, Clone, TryFromPrimitive)]
+#[derive(Debug, Hash, PartialEq, Eq, Copy, Clone, TryFromPrimitive, Serialize)]
 pub enum Register {
     ZERO, // $0
     AT,   // $1
@@ -124,7 +125,7 @@ pub enum Register {
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 pub enum RegSrc {
     Rt,
     Rs,

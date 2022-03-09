@@ -3,17 +3,18 @@ use super::traits::{ClockedMap, Value};
 use std::collections::HashMap;
 
 use wasm_bindgen::prelude::*;
+use serde::Serialize;
 
 
 #[cfg(not(test))]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct RegFile {
     current_map: HashMap<Register, u32>,
     write_buffer: HashMap<Register, u32>,
 }
 
 #[cfg(test)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct RegFile {
     current_map: HashMap<Register, u32>,
     pub write_buffer: HashMap<Register, u32>,

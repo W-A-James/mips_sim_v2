@@ -1,5 +1,6 @@
 pub mod sim;
 
+use js_sys;
 use lazy_static::lazy_static;
 use std::sync::Mutex;
 use wasm_bindgen::prelude::*;
@@ -33,6 +34,8 @@ pub fn load_binary(instrs: Vec<u32>, data: Vec<u32>) {
 }
 
 #[wasm_bindgen]
-pub fn get_state() {
+pub fn get_state() -> JsValue {
     let state = (*SIM).lock().unwrap().get_state();
+    let json_string = serde_json::to_string(&state).unwrap();
+    js_sys::JSON::parse(&json_string).unwrap()
 }

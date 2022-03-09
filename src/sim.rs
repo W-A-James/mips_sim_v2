@@ -15,6 +15,7 @@ use common::*;
 use pipe_reg::{PipeField, PipeFieldName};
 use std::convert::TryFrom;
 use traits::ClockedMap;
+use serde::Serialize;
 
 #[derive(Debug)]
 pub struct Sim {
@@ -38,7 +39,7 @@ pub struct Sim {
     cycles: u64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct SimState {
     pub stalling_unit: stalling::StallingUnit,
     pub reg_file: reg_file::RegFile,

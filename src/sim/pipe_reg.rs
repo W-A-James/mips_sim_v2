@@ -3,10 +3,10 @@ use super::common::{ALUOperation, ALUSrc, RegSrc};
 use super::traits::{ClockedMap, Field, Value};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
-use wasm_bindgen::prelude::*;
+use serde::Serialize;
 
 
-#[derive(Hash, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Hash, Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum PipeFieldName {
     PcPlus4,
     Reg1,
@@ -67,7 +67,7 @@ pub enum PipeFieldName {
     Reg2Src,
 }
 
-#[derive(Hash, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Hash, Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum PipeField {
     U32(u32),
     U64(u64),
@@ -147,7 +147,7 @@ lazy_static! {
 }
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct PipeRegister {
     name: String,
     current_map: HashMap<PipeFieldName, PipeField>,
