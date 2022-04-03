@@ -56,6 +56,8 @@ pub struct SimState {
     pub bad_v_addr: pipe_reg::PipeRegister,
     pub controller: controller::Controller,
     pub memory: mem::Memory,
+
+    pub cycles: u64
 }
 
 // -------- Public API ---------
@@ -208,7 +210,15 @@ impl Sim {
 
     pub fn step(&mut self, n: u32) {
         for _ in 0..n {
+            let halt = match self.halt.read(PipeFieldName::Halt) {
+                PipeField::Bool(b) => b,
+                _ => unreachable!()
+            };
+            if halt {
+                break;
+            } else {
             self._step();
+            }
         }
     }
 
@@ -227,7 +237,7 @@ impl Sim {
         }
     }
 
-    pub fn load_binary(&mut self, instrs: &Vec<u32>, data: &Vec<u32>) {
+    pub fn load_binary(&mut self, instrs: &Vec<u32>, data: &Vec<u32>, entry: u32) {
         let mut mem_index = TEXT_START;
         eprintln!("Instructions");
         for v in instrs {
@@ -250,6 +260,8 @@ impl Sim {
         }
 
         self.memory.clock();
+
+        self.pc.load(PipeFieldName::PC, PipeField::U32(entry));
     }
 
     pub fn get_state(&self) -> SimState {
@@ -261,15 +273,17 @@ impl Sim {
             ex_mem_reg: self.ex_mem_reg.clone(),
             mem_wb_reg: self.mem_wb_reg.clone(),
             pc: self.pc.clone(),
-            halt: self.pc.clone(),
+            halt: self.halt.clone(),
+            memory: self.memory.clone(),
 
             status_reg: self.status_reg.clone(),
             cause_reg: self.cause_reg.clone(),
             epc_reg: self.epc_reg.clone(),
             bad_v_addr: self.bad_v_addr.clone(),
             controller: self.controller.clone(),
-            memory: self.memory.clone(),
+            cycles: self.cycles
         }
+        
     }
 }
 
@@ -1383,7 +1397,7 @@ mod tests {
             instrs.push(0);
         }
 
-        sim.load_binary(&instrs, &data);
+        sim.load_binary(&instrs, &data, TEXT_START);
 
         sim.step(num_cycles);
 

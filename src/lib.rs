@@ -29,8 +29,8 @@ pub fn step_to_halt() {
 }
 
 #[wasm_bindgen]
-pub fn load_binary(instrs: Vec<u32>, data: Vec<u32>) {
-    (*SIM).lock().unwrap().load_binary(&instrs, &data);
+pub fn load_binary(instrs: Vec<u32>, data: Vec<u32>, entry_point: u32) {
+    (*SIM).lock().unwrap().load_binary(&instrs, &data, entry_point);
 }
 
 #[wasm_bindgen]
