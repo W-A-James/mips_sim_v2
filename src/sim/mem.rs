@@ -38,7 +38,6 @@ impl Memory {
 }
 
 impl ClockedMap<u32, u32> for Memory {
-    // TODO: change how endianness works here
     fn read(&self, field: u32) -> u32 {
         //  Handle unaligned reads
 
