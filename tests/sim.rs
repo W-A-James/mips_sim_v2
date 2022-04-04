@@ -39,7 +39,7 @@ mod tests {
         let instrs = load(program_path, true);
         let data = load(data_path, false);
 
-        sim.load_binary(&instrs, &data);
+        sim.load_binary(&instrs, &data, 0x40_000);
     }
 
     fn run_assembly_test(test_name: &str, check_list: Vec<(Register, u32)>) {

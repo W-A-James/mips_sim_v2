@@ -1,5 +1,7 @@
 use super::traits::ClockedMap;
 use std::collections::HashMap;
+use wasm_bindgen::prelude::*;
+use serde::Serialize;
 
 #[derive(Debug)]
 pub struct InvalidMemoryAddressRequest;
@@ -9,7 +11,8 @@ impl std::fmt::Display for InvalidMemoryAddressRequest {
     }
 }
 
-#[derive(Debug, Clone)]
+#[wasm_bindgen]
+#[derive(Debug, Clone, Serialize)]
 pub struct Memory {
     map: HashMap<u32, u32>,
     write_buffer: Vec<(u32, u32)>,

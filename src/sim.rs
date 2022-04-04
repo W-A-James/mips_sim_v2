@@ -15,6 +15,7 @@ use common::*;
 use pipe_reg::{PipeField, PipeFieldName};
 use std::convert::TryFrom;
 use traits::ClockedMap;
+use serde::Serialize;
 
 /// Simulator of a simple MIPS processor
 #[derive(Debug)]
@@ -39,7 +40,7 @@ pub struct Sim {
     cycles: u64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct SimState {
     pub stalling_unit: stalling::StallingUnit,
     pub reg_file: reg_file::RegFile,
@@ -56,9 +57,12 @@ pub struct SimState {
     pub bad_v_addr: pipe_reg::PipeRegister,
     pub controller: controller::Controller,
     pub memory: mem::Memory,
+
+    pub cycles: u64
 }
 
 // -------- Public API ---------
+
 impl Sim {
     pub fn new() -> Sim {
         let if_id_reg: pipe_reg::PipeRegister;
@@ -200,10 +204,22 @@ impl Sim {
         sim
     }
 
-    /// Advance the simulator by `n` clock cycles
+    pub fn reinit(&mut self) {
+        let s = Sim::new();
+        *self = s;
+    }
+
     pub fn step(&mut self, n: u32) {
         for _ in 0..n {
+            let halt = match self.halt.read(PipeFieldName::Halt) {
+                PipeField::Bool(b) => b,
+                _ => unreachable!()
+            };
+            if halt {
+                break;
+            } else {
             self._step();
+            }
         }
     }
 
@@ -223,9 +239,7 @@ impl Sim {
         }
     }
 
-    /// Load the program binary into simulator memory starting text
-    /// at addr 0x0040_0000
-    pub fn load_binary(&mut self, instrs: &Vec<u32>, data: &Vec<u32>) {
+    pub fn load_binary(&mut self, instrs: &Vec<u32>, data: &Vec<u32>, entry: u32) {
         let mut mem_index = TEXT_START;
         eprintln!("Instructions");
         for v in instrs {
@@ -248,6 +262,8 @@ impl Sim {
         }
 
         self.memory.clock();
+
+        self.pc.load(PipeFieldName::PC, PipeField::U32(entry));
     }
 
     /// Return a SimState struct containing all the current state of the simulator
@@ -260,15 +276,17 @@ impl Sim {
             ex_mem_reg: self.ex_mem_reg.clone(),
             mem_wb_reg: self.mem_wb_reg.clone(),
             pc: self.pc.clone(),
-            halt: self.pc.clone(),
+            halt: self.halt.clone(),
+            memory: self.memory.clone(),
 
             status_reg: self.status_reg.clone(),
             cause_reg: self.cause_reg.clone(),
             epc_reg: self.epc_reg.clone(),
             bad_v_addr: self.bad_v_addr.clone(),
             controller: self.controller.clone(),
-            memory: self.memory.clone(),
+            cycles: self.cycles
         }
+        
     }
 }
 
@@ -417,9 +435,9 @@ impl Sim {
             self.if_id_reg
                 .load(PipeFieldName::InstructionPc, PipeField::U32(pc));
 
-                self.if_id_reg
-                    .load(PipeFieldName::PcPlus4, PipeField::U32(pc + 4));
-                self.pc.load(PipeFieldName::PC, PipeField::U32(pc + 4));
+            self.if_id_reg
+                .load(PipeFieldName::PcPlus4, PipeField::U32(pc + 4));
+            self.pc.load(PipeFieldName::PC, PipeField::U32(pc + 4));
         }
     }
 
@@ -552,7 +570,8 @@ impl Sim {
                         // Send bubble to execute
                         self.id_ex_reg.clear_pending();
                         insert_bubble!(self, DECODE);
-                        self.id_ex_reg.load(PipeFieldName::InDelaySlot, PipeField::Bool(true));
+                        self.id_ex_reg
+                            .load(PipeFieldName::InDelaySlot, PipeField::Bool(true));
                         return;
                     }
 
@@ -1373,7 +1392,7 @@ mod tests {
             instrs.push(0);
         }
 
-        sim.load_binary(&instrs, &data);
+        sim.load_binary(&instrs, &data, TEXT_START);
 
         sim.step(num_cycles);
 

@@ -1,12 +1,15 @@
 use super::traits::Field;
 use std::iter::Iterator;
 use num_enum::TryFromPrimitive;
+use wasm_bindgen::prelude::*;
+use serde::Serialize;
 
 pub const TEXT_START: u32 = 0x0040_0000;
 pub const STACK_POINTER_INITIAL: u32 = 0x7fff_ffff;
 pub const HALT_INSTRUCTION: u32 = 0xDEAD_BEEF;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[wasm_bindgen]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize)]
 pub enum ALUSrc {
     Zero,
     Reg1,
@@ -18,7 +21,9 @@ pub enum ALUSrc {
     ZeroExtImm,
     Shamt,
 }
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+
+#[wasm_bindgen]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize)]
 pub enum ALUOperation {
     ADD,
     ADDU,
@@ -44,7 +49,8 @@ pub enum ALUOperation {
     CLZ,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[wasm_bindgen]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 pub enum RegDest {
     Rt,
     Rd,
@@ -54,7 +60,8 @@ pub enum RegDest {
     XXX,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[wasm_bindgen]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 pub enum BranchType {
     Beq,
     Bgez,
@@ -67,7 +74,8 @@ pub enum BranchType {
     XXX,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[wasm_bindgen]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 pub enum JumpType {
     J,
     Jal,
@@ -76,8 +84,9 @@ pub enum JumpType {
     XXX,
 }
 
+#[wasm_bindgen]
 #[repr(u8)]
-#[derive(Debug, Hash, PartialEq, Eq, Copy, Clone, TryFromPrimitive)]
+#[derive(Debug, Hash, PartialEq, Eq, Copy, Clone, TryFromPrimitive, Serialize)]
 pub enum Register {
     ZERO, // $0
     AT,   // $1
@@ -115,7 +124,8 @@ pub enum Register {
     LO,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[wasm_bindgen]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 pub enum RegSrc {
     Rt,
     Rs,
@@ -125,7 +135,7 @@ pub enum RegSrc {
 impl Field for Register {}
 
 impl Register {
-    pub fn iter() -> impl Iterator<Item = Register> {
+    pub fn iter() -> Vec<Register> {
         use Register::*;
         [
             ZERO, AT, V0, V1, A0, A1, A2, A3, T0, T1, T2, T3, T4, T5, T6, T7, S0, S1, S2, S3, S4,
@@ -133,6 +143,7 @@ impl Register {
         ]
         .iter()
         .copied()
+        .collect()
     }
 }
 
