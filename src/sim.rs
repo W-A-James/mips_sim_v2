@@ -13,9 +13,9 @@ pub mod traits;
 use alu::ALUError;
 use common::*;
 use pipe_reg::{PipeField, PipeFieldName};
+use serde::Serialize;
 use std::convert::TryFrom;
 use traits::ClockedMap;
-use serde::Serialize;
 
 /// Simulator of a simple MIPS processor
 #[derive(Debug)]
@@ -58,7 +58,7 @@ pub struct SimState {
     pub controller: controller::Controller,
     pub memory: mem::Memory,
 
-    pub cycles: u64
+    pub cycles: u64,
 }
 
 // -------- Public API ---------
@@ -211,15 +211,7 @@ impl Sim {
 
     pub fn step(&mut self, n: u32) {
         for _ in 0..n {
-            let halt = match self.halt.read(PipeFieldName::Halt) {
-                PipeField::Bool(b) => b,
-                _ => unreachable!()
-            };
-            if halt {
-                break;
-            } else {
             self._step();
-            }
         }
     }
 
@@ -284,9 +276,8 @@ impl Sim {
             epc_reg: self.epc_reg.clone(),
             bad_v_addr: self.bad_v_addr.clone(),
             controller: self.controller.clone(),
-            cycles: self.cycles
+            cycles: self.cycles,
         }
-        
     }
 }
 
@@ -1314,32 +1305,32 @@ impl Sim {
             _ => panic!(),
         };
 
-        self.fetch_stage(stall_fetch, squash_fetch);
-        self.decode_stage(stall_decode, squash_decode);
-        self.execute_stage(false, false);
-        self.memory_stage(false, false);
-        self.writeback_stage(false, false);
+        if let PipeField::Bool(b) = self.halt.read(PipeFieldName::Halt) {
+            if !b {
+                self.fetch_stage(stall_fetch, squash_fetch);
+                self.decode_stage(stall_decode, squash_decode);
+                self.execute_stage(false, false);
+                self.memory_stage(false, false);
+                self.writeback_stage(false, false);
 
-        self.stalling_unit.clock();
-        // Check squash and stall signals here and set registers accordingly
+                self.stalling_unit.clock();
+                // Check squash and stall signals here and set registers accordingly
 
-        self.if_id_reg.clock();
-        self.id_ex_reg.clock();
-        self.ex_mem_reg.clock();
-        self.mem_wb_reg.clock();
+                self.if_id_reg.clock();
+                self.id_ex_reg.clock();
+                self.ex_mem_reg.clock();
+                self.mem_wb_reg.clock();
 
-        self.pc.clock();
-        self.status_reg.clock();
-        self.epc_reg.clock();
-        self.bad_v_addr.clock();
-        self.halt.clock();
+                self.pc.clock();
+                self.status_reg.clock();
+                self.epc_reg.clock();
+                self.bad_v_addr.clock();
+                self.halt.clock();
+                self.reg_file.clock();
 
-        self.reg_file.clock();
-
-        self.memory.clock();
-        // eprintln!("Cycle: {}\n{:#?}", self.cycles, self.get_state());
-        // eprintln!("Cycle: {}\n{:#?}", self.cycles, self.get_state());
-
+                self.memory.clock();
+            }
+        }
         self.cycles += 1;
     }
 
