@@ -1,17 +1,15 @@
 extern crate mips_sim;
+extern crate web_sys;
 
-#[cfg(test)]
-mod tests {
+mod utils {
     use mips_sim::sim;
     use mips_sim::sim::common::*;
     use mips_sim::sim::traits::*;
-    use paste::paste;
     use std::fs::File;
     use std::io::prelude::*;
     use std::io::BufReader;
     pub const ASSEMBLY_TESTS_ROOT: &str = "tests/assembly_tests/";
-
-    fn load(path: &str, is_instr: bool) -> Vec<u32> {
+    pub fn load(path: &str, is_instr: bool) -> (Vec<u32>, u32) {
         let file = File::open(path).unwrap();
         let mut buf_reader = BufReader::new(file);
         let mut contents = String::new();
@@ -19,30 +17,35 @@ mod tests {
         buf_reader.read_to_string(&mut contents).unwrap();
 
         let mut lines = contents.lines();
+
+        let entry = 0x40_0000;
+        /*let entry = match lines.next() { Some(s) => s.parse::<u32>().unwrap(),
+            _ => 0x40_0000
+        };*/
         let len = match lines.next() {
             Some(s) => s.parse::<usize>().unwrap(),
             _ => 0,
         };
 
         let mut v: Vec<u32> = Vec::with_capacity(len + 1);
-        for _ in 0..len {
-            v.push(lines.next().unwrap().parse::<u32>().unwrap());
+        for l in lines {
+            v.push(l.parse::<u32>().unwrap());
         }
         if is_instr {
             v.push(mips_sim::sim::common::HALT_INSTRUCTION);
         }
 
-        v
+        (v, entry)
     }
 
     pub fn load_sample_program(sim: &mut sim::Sim, program_path: &str, data_path: &str) {
-        let instrs = load(program_path, true);
-        let data = load(data_path, false);
+        let (instrs, entry) = load(program_path, true);
+        let (data, _) = load(data_path, false);
 
-        sim.load_binary(&instrs, &data, 0x40_000);
+        sim.load_binary(&instrs, &data, entry);
     }
 
-    fn run_assembly_test(test_name: &str, check_list: Vec<(Register, u32)>) {
+    pub fn run_assembly_test(test_name: &str, check_list: Vec<(Register, u32)>) {
         let mut sim = sim::Sim::new();
         let instr_path = &format!("{}{}.rout", ASSEMBLY_TESTS_ROOT, test_name);
         let data_path = &format!("{}{}.rdata", ASSEMBLY_TESTS_ROOT, test_name);
@@ -64,6 +67,13 @@ mod tests {
             );
         }
     }
+}
+#[cfg(test)]
+mod tests {
+    use mips_sim::sim::common::*;
+    use paste::paste;
+
+    use super::utils::*;
 
     macro_rules! build_test {
         ($name: ident, $check_list: expr) => {
@@ -326,3 +336,92 @@ mod tests {
     build_test! {delay_slot, vec![(T0, 20), (T1, 20), (T2, 0)]}
 }
 
+#[cfg(test)]
+mod perf {
+    use mips_sim::sim::Sim;
+    use mips_sim::sim::traits::*;
+    use std::time;
+    use wasm_bindgen_test::*;
+    wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
+    use std::fs::File;
+    use std::io::prelude::*;
+    use std::io::BufWriter;
+
+
+    pub const ITERS: u32 = 30_000;
+    pub const NUM_RUNS: u32 = 1000;
+    pub const RESULT_FILE: &str = "tests/benchmark.out";
+
+    fn nop_loop() -> Vec<f64> {
+        let mut res_vec = Vec::new();
+        for _ in 0..NUM_RUNS {
+            let mut sim = Sim::new();
+            let start = time::Instant::now();
+            sim.step(ITERS);
+            let elapsed = start.elapsed();
+            res_vec.push(elapsed.as_secs_f64());
+        }
+        res_vec
+    }
+
+    fn nop_loop_wasm() -> TestRes {
+        let mut time_vec = Vec::new();
+        let mut cps_vec = Vec::new();
+        for _ in 0..NUM_RUNS {
+            let mut sim = Sim::new();
+            let start = js_sys::Date::now();
+            for _ in 0..ITERS {
+                sim.step(1);
+                let s = sim.get_state();
+                s.reg_file.read(mips_sim::sim::common::Register::ZERO);
+            }
+            let elapsed = (js_sys::Date::now() - start) / (1000.0f64); // Convert to seconds
+            let cps = (ITERS as f64) / elapsed;
+            time_vec.push(elapsed);
+            cps_vec.push(cps)
+        }
+        TestRes{elapsed_s: time_vec, cps: cps_vec, cycles: ITERS}
+    }
+    #[test]
+    #[ignore]
+    pub fn test_nop_loop_native() {
+        let res_vec = nop_loop();
+        let l = res_vec.len() as f64;
+
+        let average = res_vec.into_iter().reduce(|acc, x| acc + x).unwrap() / l;
+        let f = File::create(RESULT_FILE).unwrap();
+        let mut w = BufWriter::new(f);
+
+        w.write(
+            format!(
+                "Average Duration: {}\nCycles: {}\nCPS: {}",
+                average,
+                ITERS,
+                (ITERS as f64) / average
+            )
+            .as_bytes(),
+        )
+        .unwrap();
+    }
+
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    pub struct TestRes {
+        pub elapsed_s: Vec<f64>,
+        pub cps: Vec<f64>,
+        pub cycles: u32,
+    }
+
+    #[wasm_bindgen_test]
+    pub fn test_nop_loop_wasm() {
+        let test_res = nop_loop_wasm();
+        let l = test_res.elapsed_s.len();
+
+        web_sys::console::log_1(&wasm_bindgen::JsValue::from("elapsed_s,cycles_per_second,cycles"));
+        for i in 0..l {
+            let s = &format!("{},{},{}", test_res.elapsed_s[i], test_res.cps[i], test_res.cycles);
+            web_sys::console::log_1(&wasm_bindgen::JsValue::from(s));
+        }
+        
+    }
+}

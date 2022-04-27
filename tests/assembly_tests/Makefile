@@ -46,6 +46,7 @@ rout_files = addi.rout \
 			bne.rout \
 			fib.rout \
 			delay_slot.rout \
+			running_sum.rout \
 			#clo.rout\
 
 rdata_files = addi.rdata \
@@ -96,6 +97,7 @@ rdata_files = addi.rdata \
 			bne.rdata \
 			fib.rdata \
 			delay_slot.rdata \
+			running_sum.rdata \
 			#clo.rdata\
 
 cc = mips-img-linux-gnu-gcc
